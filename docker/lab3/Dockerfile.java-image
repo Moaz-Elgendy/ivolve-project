@@ -1,0 +1,12 @@
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+COPY --chown=ubuntu:ubuntu target/calculator.jar .
+
+USER ubuntu
+
+CMD ["java", "-jar", "calculator.jar"]
+
+EXPOSE 8080
+
