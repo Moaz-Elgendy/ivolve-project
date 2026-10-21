@@ -1,0 +1,23 @@
+FROM maven:3.9.15-eclipse-temurin-17-alpine AS builder
+
+WORKDIR /app
+
+COPY pom.xml .
+
+COPY src ./src
+
+RUN mvn package
+
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+
+RUN addgroup --system java && adduser --system --ingroup java java
+
+COPY --chown=java:java --from=builder /app/target/demo-0.0.1-SNAPSHOT.jar .
+
+USER java
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "demo-0.0.1-SNAPSHOT.jar"]
