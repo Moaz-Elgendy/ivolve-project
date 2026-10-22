@@ -5,7 +5,7 @@ A Spring Boot application is containerized twice: first with a single-stage buil
 ## Project Files
 
 ```
-lab4/
+docker/lab4/
 ├── Dockerfile              # single-stage build
 ├── Dockerfile.multi-stage  # multi-stage build
 ├── pom.xml                 # Spring Boot 3.2.0, Java 17

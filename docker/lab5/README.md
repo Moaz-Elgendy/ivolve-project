@@ -5,7 +5,7 @@ A Node.js application is scanned with Trivy, the findings are analyzed, the Dock
 ## Project Files
 
 ```
-lab5/
+docker/lab5/
 ├── Dockerfile
 ├── app.js
 ├── package.json

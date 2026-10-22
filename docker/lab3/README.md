@@ -8,7 +8,7 @@ The same Maven calculator app is containerized in two ways to compare image size
 ## Project Files
 
 ```
-lab3/
+docker/lab3/
 ├── Dockerfile.maven      # Part 1
 ├── Dockerfile.java-image # Part 2
 ├── pom.xml
