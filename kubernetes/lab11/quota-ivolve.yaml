@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ivolveQuota
+  namespace: ivolve
+spec:
+  hard:
+    pods: "3"
+status: {}
