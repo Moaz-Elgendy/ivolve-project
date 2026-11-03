@@ -1,0 +1,31 @@
+prometheus:
+  prometheusSpec:
+    tolerations:
+      - operator: Exists
+        effect: NoSchedule
+
+alertmanager:
+  alertmanagerSpec:
+    tolerations:
+      - operator: Exists
+        effect: NoSchedule
+
+grafana:
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+
+prometheusOperator:
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+
+kube-state-metrics:
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
+
+prometheus-node-exporter:
+  tolerations:
+    - operator: Exists
+      effect: NoSchedule
