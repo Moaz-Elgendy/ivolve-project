@@ -1,0 +1,149 @@
+pipeline {
+    agent any
+
+    environment {
+        SOURCE_REPO = 'https://github.com/Moaz-Elgendy/ivolve-project'
+        SOURCE_BRANCH = 'main'
+        APP_DIR = 'docker/lab8'
+        DOCKERFILE = 'Dockerfile'
+        BUILD_COMMAND = 'REPLACE_WITH_BUILD_COMMAND'
+        DOCKERHUB_REPO = 'mk0230/application-ivolve'
+        DEPLOYMENT_FILE = 'deployment.yaml'
+        CONTAINER_NAME = 'REPLACE_WITH_CONTAINER_NAME'
+        DEPLOYMENT_NAME = 'REPLACE_WITH_DEPLOYMENT_NAME'
+        KUBE_NAMESPACE = 'ivolve'
+        SSH_HOST = 'REPLACE_WITH_CONTROL_PLANE_HOST'
+        SSH_USER = 'REPLACE_WITH_SSH_USER'
+
+        // Jenkins credential IDs, never secret values.
+        DOCKERHUB_CREDENTIALS_ID = 'docker-hub'
+        SSH_CREDENTIALS_ID = 'control-plane-ssh'
+        KNOWN_HOSTS_CREDENTIALS_ID = 'control-plane-known-hosts'
+        IMAGE = "${DOCKERHUB_REPO}:${BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('checkout'){
+            steps {
+                checkout scm
+                sh '''
+                set -eu
+                pwd
+                ls -la
+                '''
+            }
+        }
+        stage('Build app') {
+            steps {
+                dir("${env.APP_DIR}") {
+                    sh 'sh -eu -c "$BUILD_COMMAND"'
+                }
+            }
+        }
+
+        stage('Build image') {
+            steps {
+                dir('source') {
+                    sh 'docker build --file "$DOCKERFILE" --tag "$IMAGE" "$APP_DIR"'
+                }
+            }
+        }
+
+        stage('Scan image') {
+            steps {
+                // Findings are informational; execution errors still fail the build.
+                sh 'trivy image --image-src docker --exit-code 0 --format table --output artifacts/trivy-report.txt "$IMAGE"'
+            }
+        }
+
+        stage('Push image') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: env.DOCKERHUB_CREDENTIALS_ID,
+                    usernameVariable: 'DOCKERHUB_USER',
+                    passwordVariable: 'DOCKERHUB_TOKEN'
+                )]) {
+                    sh '''
+                        set -eu
+                        set +x
+                        export DOCKER_CONFIG="$WORKSPACE/.docker-auth"
+                        mkdir -p "$DOCKER_CONFIG"
+                        chmod 700 "$DOCKER_CONFIG"
+                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+                        printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USER" --password-stdin
+                        docker push "$IMAGE"
+                    '''
+                }
+            }
+        }
+
+        stage('Delete local image') {
+            steps {
+                sh 'docker image rm "$IMAGE"'
+            }
+        }
+
+        stage('Update deployment') {
+            steps {
+                sh '''
+                    set -eu
+                    kubectl set image --local -f "source/$DEPLOYMENT_FILE" \\
+                        "$CONTAINER_NAME=$IMAGE" -o yaml > artifacts/deployment.yaml
+                '''
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([file(
+                    credentialsId: env.KNOWN_HOSTS_CREDENTIALS_ID,
+                    variable: 'KNOWN_HOSTS'
+                )]) {
+                    sshagent(credentials: [env.SSH_CREDENTIALS_ID]) {
+                        sh '''
+                            set -eu
+                            remote_ssh() {
+                                ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \\
+                                    -o UserKnownHostsFile="$KNOWN_HOSTS" -o ConnectTimeout=15 \\
+                                    "$SSH_USER@$SSH_HOST" "$@"
+                            }
+                            remote_dir=$(remote_ssh 'mktemp -d /tmp/jenkins-deploy.XXXXXXXXXX')
+                            # Validate remote output before using it in shell commands.
+                            printf '%s\\n' "$remote_dir" | grep -Eq '^/tmp/jenkins-deploy[.][a-zA-Z0-9]+$'
+                            trap 'remote_ssh "rm -rf -- $remote_dir" || echo "Warning: remote temporary directory cleanup failed" >&2' EXIT
+                            scp -o BatchMode=yes -o StrictHostKeyChecking=yes \\
+                                -o UserKnownHostsFile="$KNOWN_HOSTS" -o ConnectTimeout=15 \\
+                                artifacts/deployment.yaml "$SSH_USER@$SSH_HOST:$remote_dir/deployment.yaml"
+                            remote_ssh "kubectl --namespace=$KUBE_NAMESPACE apply -f $remote_dir/deployment.yaml && kubectl --namespace=$KUBE_NAMESPACE rollout status deployment/$DEPLOYMENT_NAME --timeout=300s"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Cleanup must still run if archiving fails.
+            script {
+                try {
+                    archiveArtifacts artifacts: 'artifacts/*', allowEmptyArchive: true
+                } finally {
+                    sh returnStatus: true, script: '''
+                        set +e
+                        if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+                            docker image rm "$IMAGE" || echo 'Warning: local image cleanup failed' >&2
+                        fi
+                        rm -rf "$WORKSPACE/.docker-auth"
+                    '''
+                }
+            }
+        }
+        success {
+            echo "Successfully deployed ${env.IMAGE}; Kubernetes rollout completed."
+        }
+        failure {
+            echo "Build ${env.BUILD_NUMBER} failed for ${env.IMAGE}. Check the failed stage and archived artifacts."
+        }
+    }
+}

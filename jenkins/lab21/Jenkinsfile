@@ -1,0 +1,65 @@
+@Library('shared-lib') _
+
+pipeline{
+    agent none
+
+    environment{
+        IMAGE_NAME = 'mk0230/application-ivolve'
+        DOCKER_HUB_CREDENTIALS = 'docker-hub'
+        DOCKERFILE_CONTEXT = './docker/lab8'
+        MANIFEST_FILE = './kubernetes/lab15/app-deployment-ivolve.yaml'
+        KUBE_CREDENTIALS = 'jenkins-kubeconfig'
+        NAMESPACE = 'ivolve'
+    }
+
+    stages {
+        stage('Checkout') {
+            agent {label 'built-in'}
+            steps {
+                deleteDir()
+                checkout scm
+                stash name: 'source-files', includes: 'docker/lab8/**,kubernetes/lab15/app-deployment-ivolve.yaml'
+            }
+        }
+
+        stage('BuildImage') {
+            agent {label 'built-in'}
+            steps {
+                deleteDir()
+                unstash 'source-files'
+                script {
+                    buildApp(env.IMAGE_NAME, env.DOCKER_HUB_CREDENTIALS, env.DOCKERFILE_CONTEXT)
+                }
+            }
+        }
+
+        stage('DeployKubernetes') {
+            agent {label 'k8s-agent'}
+            steps {
+                deleteDir()
+                unstash 'source-files'
+                script {
+                    deployKubernetes(env.IMAGE_NAME, env.MANIFEST_FILE, env.KUBE_CREDENTIALS, env.NAMESPACE)
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "______________________________________________________________________________"
+            echo "Result:  ${currentBuild.currentResult}"
+            echo "Job:     ${env.JOB_NAME} Build Number: ${env.BUILD_NUMBER}"
+            echo "Image:   ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+            echo "Console: ${env.BUILD_URL}console"
+        }
+        success {
+            echo "Deployed ${env.IMAGE_NAME}:${env.BUILD_NUMBER} to ${env.NAMESPACE}"
+        }
+        failure {
+            echo "Pipeline failed at stage: ${env.STAGE_NAME}"
+            echo "Debug: kubectl describe pods -n ${env.NAMESPACE}"
+            echo "Debug: kubectl logs -n ${env.NAMESPACE} -l app=${env.IMAGE_NAME.tokenize('/')[-1]}"
+        }
+    }
+}
