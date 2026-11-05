@@ -34,6 +34,23 @@ Key requirements accomplished:
 
 ---
 
+## Directory Structure
+
+```text
+lab21/
+├── Jenkinsfile              # Declarative pipeline script utilizing shared library
+├── jenkins-kubeconfig       # Kubeconfig secret file for cluster authentication
+├── docker-build.png         # Docker image build execution
+├── trivy-scan.png           # Trivy vulnerability scan execution
+├── trivy-process.png        # Process monitoring during Trivy scan
+├── docker-push.png          # Docker Hub login and push
+├── docker-cleanup.png       # Docker push completion and local image cleanup
+├── docker-hub-tags.png      # Docker Hub repository tags verification
+└── pipeline-stage-view.png  # End-to-end pipeline stage view (Build #8)
+```
+
+---
+
 ## Pipeline Architecture & Configuration
 
 The pipeline is defined in [Jenkinsfile](Jenkinsfile) and uses the Jenkins Shared Library `@Library('shared-lib') _`:
@@ -205,7 +222,12 @@ Docker push completion with SHA256 digest and removal of the local image tag via
 
 ![Docker Cleanup](docker-cleanup.png)
 
-### 6. Pipeline Execution Stage View
+### 6. Docker Hub Repository Tags Verification
+Verification of the published container image tags in the remote Docker Hub repository (`mk0230/application-ivolve`):
+
+![Docker Hub Repository Tags](docker-hub-tags.png)
+
+### 7. Pipeline Execution Stage View
 Jenkins Stage View showing successful execution of **Build #8** across all pipeline stages (**Checkout**, **BuildImage**, and **DeployKubernetes**):
 
 ![Pipeline Stage View](pipeline-stage-view.png)

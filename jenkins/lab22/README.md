@@ -12,6 +12,8 @@ Modernize and scale the Jenkins CI/CD infrastructure by decoupling pipeline logi
    - Execute cluster deployment on a dedicated `k8s-agent` node equipped with cluster network connectivity and `kubectl`.
 3. **Artifact Stashing across Agents**:
    - Utilize Jenkins `stash` and `unstash` mechanisms to share files between nodes without requiring shared persistent storage.
+4. **End-to-End Validation**:
+   - Verify published Docker Hub tags and live deployment updates on Kubernetes via a web browser.
 
 ---
 
@@ -20,17 +22,20 @@ Modernize and scale the Jenkins CI/CD infrastructure by decoupling pipeline logi
 ```text
 lab22/
 ├── vars/
-│   ├── buildApp.groovy          # Shared library step for building, scanning, and pushing Docker image
-│   └── deployKubernetes.groovy  # Shared library step for updating manifest and deploying to K8s
-├── shared-lib-buildApp.png
-├── shared-lib-deployKubernetes.png
-├── jenkinsfile-shared-lib-agents.png
-├── docker-build.png
-├── trivy-scan.png
-├── trivy-process.png
-├── docker-push.png
-├── docker-cleanup.png
-└── pipeline-stage-view.png
+│   ├── buildApp.groovy                  # Shared library step for building, scanning, and pushing Docker image
+│   └── deployKubernetes.groovy          # Shared library step for updating manifest and deploying to K8s
+├── shared-lib-buildApp.png              # Shared library implementation of buildApp
+├── shared-lib-deployKubernetes.png      # Shared library implementation of deployKubernetes
+├── jenkinsfile-shared-lib-agents.png    # Jenkinsfile utilizing shared library & multi-agent allocation
+├── jenkins-nodes-status.png             # Jenkins Node Management dashboard with online distributed nodes
+├── docker-build.png                     # Docker image build execution on built-in agent
+├── trivy-scan.png                       # Trivy security scanning execution
+├── trivy-process.png                    # System process monitoring (top) during Trivy scan
+├── docker-push.png                      # Docker Hub login and image push
+├── docker-cleanup.png                   # Image digest confirmation and local docker cleanup
+├── docker-hub-tags.png                  # Remote Docker Hub registry tags verification
+├── pipeline-stage-view.png              # Jenkins Stage View of end-to-end multi-node pipeline execution (Build #10)
+└── k8s-app-browser-verification.png     # Live web application browser verification on Kubernetes
 ```
 
 ---
@@ -214,32 +219,47 @@ The `Jenkinsfile` consuming `@Library('shared-lib')` and assigning stages to `bu
 
 ![Jenkinsfile Shared Lib and Agents](jenkinsfile-shared-lib-agents.png)
 
-### 4. Docker Build Execution (`built-in` agent)
+### 4. Distributed Jenkins Agent Nodes Status
+Jenkins Node Management dashboard showing both the `Built-In Node` (controller) and `k8s-agent` (worker node) active, synchronized, and connected:
+
+![Jenkins Nodes Status](jenkins-nodes-status.png)
+
+### 5. Docker Build Execution (`built-in` agent)
 Building the container image on the `built-in` node:
 
 ![Docker Build](docker-build.png)
 
-### 5. Trivy Security Scan Execution
+### 6. Trivy Security Scan Execution
 Scanning the newly built image for vulnerabilities using Trivy:
 
 ![Trivy Scan](trivy-scan.png)
 
-### 6. Process Monitoring during Trivy Scan
+### 7. Process Monitoring during Trivy Scan
 Verifying Trivy execution under the `jenkins` user process on the host:
 
 ![Trivy Process](trivy-process.png)
 
-### 7. Docker Hub Authentication & Image Push
+### 8. Docker Hub Authentication & Image Push
 Logging into Docker Hub and pushing the tagged image:
 
 ![Docker Push](docker-push.png)
 
-### 8. Image Digest Confirmation & Local Cache Cleanup
+### 9. Image Digest Confirmation & Local Cache Cleanup
 Confirming successful push and local image deletion (`docker rmi`):
 
 ![Docker Cleanup](docker-cleanup.png)
 
-### 9. End-to-End Pipeline Success across Nodes
-Stage View showing successful multi-node pipeline execution (**Build #8**):
+### 10. Docker Hub Repository Tags Verification
+Verifying the newly published image tags (up to tag `10`) in the remote Docker Hub repository (`mk0230/application-ivolve`):
+
+![Docker Hub Tags](docker-hub-tags.png)
+
+### 11. End-to-End Multi-Node Pipeline Stage View
+Jenkins Stage View showing consecutive successful executions (**Build #8**, **Build #9**, and **Build #10**) across all distributed stages (**Checkout**, **BuildImage**, and **DeployKubernetes**):
 
 ![Pipeline Stage View](pipeline-stage-view.png)
+
+### 12. Application Rollout & Live Web Browser Verification
+Accessing the application live via Kubernetes NodePort service at `http://192.168.1.5:3010`, confirming that the latest changes ("Westown Hub Building 3, Sodic, Beverly Hills, Cairo-Alexandria Desert Road, Unit C41, Jenkins") were deployed and served successfully:
+
+![Application Browser Verification](k8s-app-browser-verification.png)
