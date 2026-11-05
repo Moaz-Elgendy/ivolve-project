@@ -3,6 +3,10 @@
 pipeline{
     agent none
 
+    options {
+        skipDefaultCheckout(true)
+    }
+
     environment{
         IMAGE_NAME = 'mk0230/application-ivolve'
         DOCKER_HUB_CREDENTIALS = 'docker-hub'
