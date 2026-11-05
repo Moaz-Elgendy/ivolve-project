@@ -25,7 +25,6 @@ pipeline{
         stage('BuildImage') {
             agent {label 'built-in'}
             steps {
-                deleteDir()
                 unstash 'source-files'
                 script {
                     buildApp(env.IMAGE_NAME, env.DOCKER_HUB_CREDENTIALS, env.DOCKERFILE_CONTEXT)
@@ -36,7 +35,6 @@ pipeline{
         stage('DeployKubernetes') {
             agent {label 'k8s-agent'}
             steps {
-                deleteDir()
                 unstash 'source-files'
                 script {
                     deployKubernetes(env.IMAGE_NAME, env.MANIFEST_FILE, env.KUBE_CREDENTIALS, env.NAMESPACE)
