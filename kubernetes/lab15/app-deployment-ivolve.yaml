@@ -27,7 +27,7 @@ spec:
         - name: init-mysql
           image: mysql
           env:
-            - name: MYSQL_HOST
+            - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
                   name: ivolve-cm
@@ -37,17 +37,17 @@ spec:
                 secretKeyRef:
                   name: ivolve-secret
                   key: MY_SQL_ROOT_PASSWORD
-            - name: MYSQL_USER
+            - name: DB_USER
               valueFrom:
                 configMapKeyRef:
                   name: ivolve-cm
                   key: DB_USER
-            - name: MYSQL_PASSWORD
+            - name: DB_PASSWORD
               valueFrom:
                secretKeyRef:
                  name: ivolve-secret 
                  key: DB_PASSWORD      
-            - name: MYSQL_PORT
+            - name: DB_PORT
               value: "3306"
           command:
             - /bin/sh
@@ -57,8 +57,8 @@ spec:
               export MYSQL_PWD="$MYSQL_ROOT_PASSWORD"
               echo "Waiting for MYSQL ..." 
               until mysql \
-                -h "$MYSQL_HOST" \
-                -P "$MYSQL_PORT" \
+                -h "$DB_HOST" \
+                -P "$DB_PORT" \
                 -u root \
                 -e "SELECT 1" >/dev/null 2>&1; do
                 sleep 5
@@ -67,8 +67,8 @@ spec:
               echo "MYSQL is ready!"
               echo "Creating ivolve  Database ..."
               mysql \
-                -h "$MYSQL_HOST" \
-                -P "$MYSQL_PORT" \
+                -h "$DB_HOST" \
+                -P "$DB_PORT" \
                 -u root <<SQL
               CREATE DATABASE IF NOT EXISTS ivolve;
             
@@ -83,7 +83,7 @@ spec:
         ports:
           - containerPort: 3000
         env:
-          - name: MYSQL_HOST
+          - name: DB_HOST
             valueFrom:
               configMapKeyRef:
                 name: ivolve-cm
@@ -93,12 +93,12 @@ spec:
               secretKeyRef:
                 name: ivolve-secret
                 key: MY_SQL_ROOT_PASSWORD
-          - name: MYSQL_USER
+          - name: DB_USER
             valueFrom:
               configMapKeyRef:
                 name: ivolve-cm
                 key: DB_USER
-          - name: MYSQL_PASSWORD
+          - name: DB_PASSWORD
             valueFrom:
                 secretKeyRef:
                   name: ivolve-secret
