@@ -4,5 +4,5 @@ data:
   DB_USER: ivolve
 kind: ConfigMap
 metadata:
-  name: ivolveCM
+  name: ivolve-cm
   namespace: ivolve
