@@ -1,0 +1,83 @@
+@Library('shared-lib') _
+
+pipeline{
+    agent none
+
+    options {
+        skipDefaultCheckout(true)
+    }
+
+    triggers {
+        githubPush()
+    }
+
+    environment{
+        IMAGE_NAME = 'mk0230/application-ivolve'
+        DOCKER_HUB_CREDENTIALS = 'docker-hub'
+        DOCKERFILE_CONTEXT = './docker/lab8'
+        MANIFEST_FILE = './kubernetes/lab15/app-deployment-ivolve.yaml'
+        GITHUB_CREDENTIALS = 'github-credentials'
+        GIT_REPO_URL = 'github.com/Moaz-Elgendy/ivolve-project.git'
+        GIT_BRANCH = 'main'
+        NAMESPACE = 'ivolve'
+    }
+
+    stages {
+        stage('Checkout') {
+            agent {label 'built-in'}
+            when {
+                // Skip the build triggered by Jenkins' own manifest commit (prevents a loop)
+                not { changelog '.*\\[ci skip\\].*' }
+            }
+            steps {
+                deleteDir()
+                checkout scm
+                stash name: 'source-files', includes: 'docker/lab8/**,kubernetes/lab15/app-deployment-ivolve.yaml'
+            }
+        }
+
+        stage('BuildImage') {
+            agent {label 'built-in'}
+            when {
+                not { changelog '.*\\[ci skip\\].*' }
+            }
+            steps {
+                unstash 'source-files'
+                script {
+                    buildApp(env.IMAGE_NAME, env.DOCKER_HUB_CREDENTIALS, env.DOCKERFILE_CONTEXT)
+                }
+            }
+        }
+
+        stage('UpdateManifestInGit') {
+            agent {label 'built-in'}
+            when {
+                not { changelog '.*\\[ci skip\\].*' }
+            }
+            steps {
+                unstash 'source-files'
+                script {
+                    pushGithub(env.IMAGE_NAME, env.MANIFEST_FILE, env.GITHUB_CREDENTIALS, env.GIT_REPO_URL, env.GIT_BRANCH)
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "______________________________________________________________________________"
+            echo "Result:  ${currentBuild.currentResult}"
+            echo "Job:     ${env.JOB_NAME} Build Number: ${env.BUILD_NUMBER}"
+            echo "Image:   ${env.IMAGE_NAME}:${env.BUILD_NUMBER}"
+            echo "Console: ${env.BUILD_URL}console"
+        }
+        success {
+            echo "Pushed ${env.IMAGE_NAME}:${env.BUILD_NUMBER} to Git; Argo CD will sync ${env.NAMESPACE}"
+        }
+        failure {
+            echo "Pipeline failed at stage: ${env.STAGE_NAME}"
+            echo "Debug: git log -1 --stat origin/${env.GIT_BRANCH}"
+            echo "Debug: kubectl get application ivolve -n argocd"
+        }
+    }
+}
