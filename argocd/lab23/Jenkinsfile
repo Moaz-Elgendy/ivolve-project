@@ -16,7 +16,7 @@ pipeline{
         DOCKER_HUB_CREDENTIALS = 'docker-hub'
         DOCKERFILE_CONTEXT = './docker/lab8'
         MANIFEST_FILE = './kubernetes/lab15/app-deployment-ivolve.yaml'
-        GITHUB_CREDENTIALS = 'github-credentials'
+        GITHUB_CREDENTIALS = 'github'
         GIT_REPO_URL = 'github.com/Moaz-Elgendy/ivolve-project.git'
         GIT_BRANCH = 'main'
         NAMESPACE = 'ivolve'

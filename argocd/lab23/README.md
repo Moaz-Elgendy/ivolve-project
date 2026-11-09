@@ -134,7 +134,7 @@ It no longer runs `kubectl apply` or `kubectl rollout status`. Argo CD performs 
 
 | Item | Name / setting |
 |---|---|
-| Credential (Username + Personal Access Token with `repo` scope) | `github-credentials` |
+| Credential (Username + Personal Access Token with `repo` scope) | `github` |
 | Credential (Docker Hub) | `docker-hub` (unchanged) |
 | Global Pipeline Library | `shared-lib` (contains `vars/buildApp.groovy` and `vars/pushGithub.groovy`) |
 | Plugin | GitHub plugin (provides `githubPush()`) |
