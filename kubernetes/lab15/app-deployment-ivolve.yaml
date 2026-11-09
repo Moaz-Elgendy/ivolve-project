@@ -78,7 +78,7 @@ spec:
               echo "Database initialized successfully"
         
       containers:
-      - image: mk0230/application-ivolve:13
+      - image: mk0230/application-ivolve:15
         name: application-ivolve
         ports:
           - containerPort: 3000
