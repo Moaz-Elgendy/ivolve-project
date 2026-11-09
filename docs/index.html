@@ -1,558 +1,484 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kubernetes on an old laptop · Full GitOps platform</title>
-<meta name="description" content="A real Kubernetes cluster (kubeadm, 2 KVM VMs) running on a decade-old 8 GB laptop, with Jenkins CI, Argo CD GitOps, Prometheus and Grafana. Interactive walkthrough.">
+<title>GitOps on an old laptop</title>
+<meta name="description" content="A kubeadm Kubernetes cluster in two KVM VMs on a decade-old 8 GB laptop, with Jenkins CI, Argo CD, Prometheus and Grafana. An interactive walkthrough.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Kubernetes + GitOps on a decade-old 8 GB laptop">
-<meta property="og:description" content="kubeadm cluster on 2 KVM VMs, Jenkins CI, Argo CD, Prometheus and Grafana, all on 2 cores / 4 threads. Interactive walkthrough.">
+<meta property="og:title" content="A full GitOps pipeline on one old laptop">
+<meta property="og:description" content="Kubernetes, Jenkins, Argo CD and Prometheus sharing 2 CPU cores and 8 GB of RAM. Interactive walkthrough.">
 <meta property="og:image" content="https://moaz-elgendy.github.io/ivolve-project/assets/argocd-healthy.png">
 <meta property="og:url" content="https://moaz-elgendy.github.io/ivolve-project/">
 <meta name="twitter:card" content="summary_large_image">
+<script>try{var t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
+@font-face{font-family: 'Bricolage Grotesque'; font-style: normal; font-weight: 400 800; font-stretch: 100%; font-display: swap; src: url(assets/fonts/BricolageGrotesque-400-800.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/IBMPlexMono-400.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/IBMPlexMono-500.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url(assets/fonts/IBMPlexSans-400.woff2) format('woff2')}
 :root{
-  --bg:#070f19;--bg2:#0b1726;--panel:#0f1f31;--panel2:#13283d;--line:#243a52;--text:#eef5fc;--muted:#a3b7cb;--faint:#6f8499;
-  --mint:#5eead4;--blue:#7cb4ff;--amber:#fbbf6a;--rose:#fb8aa0;--violet:#b9a2ff;
-  --c-host:#8a99ab;--c-jen:#fbbf6a;--c-cp:#7cb4ff;--c-wk:#5eead4;
-  --shadow:0 18px 50px rgba(0,0,0,.35);--code:#08121e;color-scheme:dark;
+  --bg:#ECEEF1;--bg2:#E2E5EA;--ink:#12161C;--mute:#475260;--faint:#6B7684;--line:#C5CBD3;
+  --acc:#2A4BE0;--on-acc:#fff;--code-bg:#12161C;--code-ink:#DDE3EB;
+  --host:#A4ADB8;--on-host:#12161C;--build:#12161C;--on-build:#ECEEF1;--cp:#2A4BE0;--on-cp:#fff;--wk:#9FB3FF;--on-wk:#12161C;
+  --add:#116B3A;--add-bg:#D5EBDD;--del:#A3261F;--del-bg:#F3D8D5;
+  --r:2px;--display:'Bricolage Grotesque','Arial Narrow',system-ui,sans-serif;--body:'IBM Plex Sans',system-ui,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  color-scheme:light;
 }
-:root[data-theme=light]{
-  --bg:#f6f8fb;--bg2:#eaf0f7;--panel:#ffffff;--panel2:#f0f5fa;--line:#d4dfeb;--text:#0e1e2f;--muted:#42566b;--faint:#6a7d91;
-  --mint:#0b8f7c;--blue:#1d62c8;--amber:#b36b00;--rose:#c2324f;--violet:#6a4bd1;
-  --c-host:#7a8898;--c-jen:#e8a13a;--c-cp:#3d83e6;--c-wk:#14b8a0;
-  --shadow:0 14px 36px rgba(20,40,70,.12);--code:#0e1e2f;color-scheme:light;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:76px}
-body{margin:0;background:var(--bg);color:var(--text);font:17px/1.65 ui-sans-serif,Inter,"Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-body:before{content:"";position:fixed;inset:0;z-index:-1;background:
-  radial-gradient(900px 500px at 85% -10%,rgba(94,234,212,.10),transparent 60%),
-  radial-gradient(800px 500px at -10% 10%,rgba(124,180,255,.10),transparent 60%)}
-a{color:var(--blue)}
-img{max-width:100%;display:block}
-code,pre,.mono{font-family:ui-monospace,"JetBrains Mono","Cascadia Code",Consolas,monospace}
-code{font-size:.9em;background:var(--panel2);border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:var(--mint)}
-pre{background:var(--code);color:#d7e6f5;border:1px solid var(--line);border-radius:12px;padding:16px 18px;overflow:auto;font-size:13.5px;line-height:1.6;margin:14px 0}
-pre code{background:none;border:0;padding:0;color:inherit;font-size:inherit}
-pre .c{color:#6f8aa5}pre .k{color:#7cb4ff}pre .s{color:#5eead4}
-button{font:inherit;color:inherit;cursor:pointer}
-:focus-visible{outline:3px solid var(--amber);outline-offset:3px;border-radius:6px}
-.wrap{max-width:1180px;margin:auto;padding:0 24px}
-.sr{position:absolute;left:-9999px}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0F1217;--bg2:#171B22;--ink:#E8ECF1;--mute:#A0ABB8;--faint:#7C8795;--line:#2A313B;--acc:#7F98FF;--on-acc:#0F1217;--code-bg:#0A0D11;--host:#58626F;--on-host:#E8ECF1;--build:#E8ECF1;--on-build:#0F1217;--cp:#6F8CFF;--on-cp:#0F1217;--wk:#3A4E9E;--on-wk:#fff;--add:#7BD6A0;--add-bg:#14301F;--del:#FF9B93;--del-bg:#3A1A18;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0F1217;--bg2:#171B22;--ink:#E8ECF1;--mute:#A0ABB8;--faint:#7C8795;--line:#2A313B;--acc:#7F98FF;--on-acc:#0F1217;--code-bg:#0A0D11;--host:#58626F;--on-host:#E8ECF1;--build:#E8ECF1;--on-build:#0F1217;--cp:#6F8CFF;--on-cp:#0F1217;--wk:#3A4E9E;--on-wk:#fff;--add:#7BD6A0;--add-bg:#14301F;--del:#FF9B93;--del-bg:#3A1A18;color-scheme:dark}
 
-/* top bar */
-.top{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;align-items:center;gap:18px;height:60px}
-.logo{font-weight:800;letter-spacing:.02em;white-space:nowrap;text-decoration:none;color:var(--text);display:flex;gap:8px;align-items:center}
-.logo i{width:10px;height:10px;border-radius:50%;background:var(--mint);box-shadow:0 0 14px var(--mint)}
-.top nav{display:flex;gap:2px;overflow-x:auto;flex:1;scrollbar-width:none}
-.top nav::-webkit-scrollbar{display:none}
-.top nav a{color:var(--muted);text-decoration:none;font-size:14px;padding:8px 12px;border-radius:8px;white-space:nowrap}
-.top nav a:hover{color:var(--text);background:var(--panel2)}
-.top nav a.on{color:var(--text);background:var(--panel2);box-shadow:inset 0 -2px 0 var(--mint)}
-.iconbtn{border:1px solid var(--line);background:var(--panel);border-radius:10px;width:40px;height:40px;display:grid;place-items:center;flex:none}
-.iconbtn:hover{border-color:var(--mint)}
+*{box-sizing:border-box}
+html{overflow-x:clip;scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.62 var(--body);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+img{max-width:100%;display:block;border-radius:var(--r)}
+a{color:inherit;text-decoration-color:var(--acc);text-underline-offset:3px;text-decoration-thickness:2px}
+a:hover{color:var(--acc)}
+button{font:inherit;color:inherit;cursor:pointer;border-radius:var(--r)}
+:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+code,pre,kbd{font-family:var(--mono)}
+code{font-size:.88em;background:var(--bg2);padding:.1em .38em;border-radius:var(--r)}
+pre{background:var(--code-bg);color:var(--code-ink);padding:18px 20px;margin:14px 0;overflow:auto;font-size:13.5px;line-height:1.65;border-radius:var(--r)}
+pre code{background:none;padding:0;font-size:inherit}
+pre .c{color:#7E8A99}
+.wrap{max-width:1240px;margin:0 auto;padding:0 32px}
+h1,h2,h3,h4{font-family:var(--display);font-optical-sizing:auto;margin:0;letter-spacing:-.025em;line-height:1.05}
+h1{font-size:clamp(40px,6.4vw,84px);font-weight:760;letter-spacing:-.03em;max-width:15ch}
+h2{font-size:clamp(30px,3.8vw,52px);font-weight:720;margin-bottom:18px;max-width:24ch}
+h3{font-size:22px;font-weight:680;letter-spacing:-.015em;line-height:1.2}
+p{margin:0 0 14px;max-width:66ch}
+.lede{font-size:clamp(19px,2vw,23px);line-height:1.5;color:var(--mute);max-width:56ch}
+.mute{color:var(--mute)}.small{font-size:14px;color:var(--faint)}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{font-family:var(--display);font-weight:760;font-size:19px;letter-spacing:-.03em;text-decoration:none;white-space:nowrap}
+.links{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none;justify-content:flex-end}
+.links::-webkit-scrollbar{display:none}
+.links a{text-decoration:none;font-size:14.5px;color:var(--mute);padding:6px 11px;white-space:nowrap;border-radius:var(--r)}
+.links a:hover{color:var(--ink);background:var(--bg2)}
+.links a[aria-current=true]{color:var(--ink);box-shadow:inset 0 -2px 0 var(--acc)}
+.tbtn{border:1px solid var(--line);background:none;padding:6px 12px;font-size:14px;white-space:nowrap}
+.tbtn:hover{border-color:var(--ink)}
+
+/* buttons */
+.btn{display:inline-block;text-decoration:none;font-weight:500;padding:12px 22px;border:1px solid var(--ink);border-radius:var(--r);white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.btn.pri:hover{filter:brightness(1.1);color:var(--on-acc)}
+.btn:active,.seg button:active{transform:translateY(1px)}
+.btn:hover{background:var(--bg2)}
+.btn.pri:hover{background:var(--acc)}
 
 /* hero */
-.hero{padding:76px 0 46px}
-.eyebrow{font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mint);font-weight:700}
-h1{font-size:clamp(38px,6.2vw,72px);line-height:1.04;letter-spacing:-.04em;margin:16px 0 20px;font-weight:800}
-h1 em{font-style:normal;background:linear-gradient(90deg,var(--mint),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
-h2{font-size:clamp(28px,3.6vw,44px);line-height:1.12;letter-spacing:-.03em;margin:8px 0 14px;font-weight:800}
-h3{font-size:19px;margin:0 0 6px;letter-spacing:-.01em}
-.lead{font-size:clamp(18px,2vw,21px);color:var(--muted);max-width:760px}
-p{margin:10px 0}.muted{color:var(--muted)}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0}
-.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:5px 12px;font-size:13px;color:var(--muted)}
-.chip b{color:var(--text);font-weight:600}
-.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
-.btn{display:inline-flex;gap:8px;align-items:center;text-decoration:none;font-weight:650;border-radius:12px;padding:12px 20px;border:1px solid var(--line);background:var(--panel);color:var(--text)}
-.btn.pri{background:linear-gradient(135deg,var(--mint),var(--blue));color:#04121c;border:0}
-.btn:hover{transform:translateY(-1px)}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:44px}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
-.stat b{display:block;font-size:clamp(28px,3.4vw,40px);letter-spacing:-.03em;line-height:1.1;color:var(--mint)}
-.stat span{font-size:14px;color:var(--muted)}
+.hero{padding:44px 0 56px;min-height:calc(100dvh - 60px);display:flex;flex-direction:column;justify-content:center}
+.hero-grid{display:grid;grid-template-columns:5fr 7fr;gap:48px;margin-top:34px;align-items:start}
+.hero-copy .lede{margin-bottom:26px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+
+/* chip */
+.chip{border:1px solid var(--ink);padding:18px;background:var(--bg)}
+.chip-top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.chip-top strong{font-family:var(--display);font-size:17px;font-weight:680;letter-spacing:-.01em}
+.seg{display:inline-flex;border:1px solid var(--line)}
+.seg button{border:0;background:none;padding:7px 14px;font-size:14px;border-radius:0}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.cores{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.core{border:1px dashed var(--faint);padding:8px;display:grid;grid-template-rows:1fr 1fr;gap:6px}
+.core>span{font-size:12.5px;color:var(--faint);grid-row:auto}
+.tile{min-height:70px;padding:10px 12px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--line);background:var(--bg);color:var(--faint);transition:background-color .18s,color .18s}
+.tile small{font-family:var(--mono);font-size:11.5px;opacity:.85}
+.tile b{font-family:var(--display);font-size:19px;font-weight:680;letter-spacing:-.015em;line-height:1.1}
+.tile[data-o=host]{background:var(--host);color:var(--on-host);border-color:transparent}
+.tile[data-o=build]{background:var(--build);color:var(--on-build);border-color:transparent}
+.tile[data-o=cp]{background:var(--cp);color:var(--on-cp);border-color:transparent}
+.tile[data-o=wk]{background:var(--wk);color:var(--on-wk);border-color:transparent}
+.queue{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:12px 0 0;min-height:30px;font-size:13.5px;color:var(--mute)}
+.qtok{padding:2px 9px;border:1px solid var(--ink);font-size:12.5px}
+.ram{margin-top:16px}
+.ram-bar{display:flex;height:38px;border:1px solid var(--ink)}
+.ram-bar div{display:flex;align-items:center;padding:0 10px;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden}
+.ram-cap{display:flex;justify-content:space-between;font-size:13px;color:var(--faint);margin-top:6px;gap:12px;flex-wrap:wrap}
 
 /* sections */
-section{padding:84px 0 20px}
-.sec-head{max-width:780px;margin-bottom:30px}
-.num{font-family:ui-monospace,monospace;color:var(--faint);margin-right:10px}
-.grid{display:grid;gap:18px}
-.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px}
-.card.flat{background:transparent}
-.card h3 .ico{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--panel2);margin-right:8px;font-size:16px}
-.tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin:2px 3px 2px 0;font-family:ui-monospace,monospace}
-.tag.m{color:var(--mint);border-color:color-mix(in srgb,var(--mint) 40%,var(--line))}
-.tag.b{color:var(--blue)}.tag.a{color:var(--amber)}
-.plain{border-left:3px solid var(--amber);background:color-mix(in srgb,var(--amber) 9%,var(--panel));padding:14px 18px;border-radius:0 12px 12px 0;margin:18px 0;color:var(--text);font-size:16px}
-.plain b{color:var(--amber)}
-.fig{margin:18px 0}
-.fig img{border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
-.fig figcaption{font-size:13.5px;color:var(--faint);margin-top:8px}
-.shots{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+section{padding:104px 0 8px}
+.lead-row{display:grid;grid-template-columns:5fr 7fr;gap:48px;align-items:start}
+.statement{font-family:var(--display);font-size:clamp(26px,3.3vw,44px);line-height:1.18;letter-spacing:-.025em;font-weight:600;max-width:30ch}
+.statement span{color:var(--mute)}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);margin-top:56px;border-top:1px solid var(--ink)}
+.facts div{padding:16px 20px 4px 0}
+.facts dt{font-family:var(--display);font-size:clamp(26px,3vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.facts dd{margin:4px 0 0;font-size:14.5px;color:var(--mute);max-width:24ch}
+.facts{margin-left:0}
 
-/* CPU lab */
-.lab{display:grid;grid-template-columns:1.35fr 1fr;gap:18px}
-.sched{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}
-.lanes{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;margin:14px 0}
-.lane-l{font-size:12px;color:var(--faint);font-family:ui-monospace,monospace;white-space:nowrap}
-.lane{display:grid;grid-template-columns:repeat(28,1fr);gap:2px;height:24px}
-.lane i{border-radius:3px;background:var(--panel2);transition:background .25s}
-.lane i[data-o=host]{background:var(--c-host)}.lane i[data-o=jen]{background:var(--c-jen)}
-.lane i[data-o=cp]{background:var(--c-cp)}.lane i[data-o=wk]{background:var(--c-wk)}
-.core-gap{height:6px;grid-column:1/-1}
-.key{display:flex;flex-wrap:wrap;gap:14px;font-size:13.5px;color:var(--muted);margin-top:6px}
-.key span:before{content:"";display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--k)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel2)}
-.seg button{border:0;background:none;padding:9px 16px;font-size:14px;color:var(--muted)}
-.seg button[aria-pressed=true]{background:var(--mint);color:#04121c;font-weight:700}
-.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.meter{display:flex;height:34px;border-radius:10px;overflow:hidden;border:1px solid var(--line);margin:10px 0 8px}
-.meter div{display:grid;place-items:center;font-size:12.5px;font-weight:700;color:#04121c;white-space:nowrap;overflow:hidden}
-.readout{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
-.readout div{background:var(--panel2);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--muted)}
-.readout b{display:block;font-size:20px;color:var(--text);font-variant-numeric:tabular-nums}
-.layers{display:flex;flex-direction:column;gap:10px;margin-top:6px}
-.layer{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel2);font-size:15px}
-.layer small{display:block;color:var(--muted);font-size:13px}
-.layer.host{border-color:var(--c-host)}.layer.vm1{border-color:var(--c-cp)}.layer.vm2{border-color:var(--c-wk)}
-.note{font-size:13.5px;color:var(--faint)}
+table{border-collapse:collapse;width:100%;font-size:15.5px}
+th,td{text-align:left;padding:13px 18px 13px 0;vertical-align:top;border-bottom:1px solid var(--line)}
+th{font-weight:500;color:var(--faint);font-size:13.5px;border-bottom-color:var(--ink)}
+tbody tr:last-child td{border-bottom:0}
+td:first-child{font-family:var(--display);font-weight:680;font-size:18px;white-space:nowrap}
+.fig{margin:0}
+.fig figcaption{font-size:14px;color:var(--faint);margin-top:9px;max-width:70ch}
+.fig img{border:1px solid var(--line)}
+.split{display:grid;grid-template-columns:7fr 5fr;gap:48px;align-items:start;margin-top:40px}
 
 /* architecture */
-.arch{border:1px solid var(--line);border-radius:22px;padding:18px;background:linear-gradient(180deg,var(--panel),var(--bg2))}
-.pc{display:flex;align-items:center;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
-.pill{border:1px dashed var(--line);border-radius:12px;padding:8px 14px;font-size:14px;color:var(--muted);background:var(--panel)}
-.wire{width:2px;height:26px;margin:0 auto;background:repeating-linear-gradient(var(--blue) 0 5px,transparent 5px 10px);animation:dash 1s linear infinite}
-.wirelabel{text-align:center;font-size:12px;color:var(--faint);margin:-2px 0 4px;font-family:ui-monospace,monospace}
-@keyframes dash{to{background-position:0 10px}}
-.server{border:2px solid var(--c-host);border-radius:20px;padding:18px;background:color-mix(in srgb,var(--c-host) 7%,var(--panel))}
-.server>header{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.server h3{margin:0}
-.svc-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-.svc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
-.svc b{display:block}.svc small{color:var(--muted)}
-.svc.jen{border-color:var(--c-jen)}
-.net{border:2px dashed var(--blue);border-radius:16px;padding:14px;position:relative;margin-top:8px}
-.net>.nl{position:absolute;top:-12px;left:16px;background:var(--panel);padding:0 10px;font-size:12.5px;color:var(--blue);font-family:ui-monospace,monospace}
-.vms{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
-.vm{border-radius:14px;border:2px solid;padding:14px;background:var(--panel);min-width:0}
-.vm.cp{border-color:var(--c-cp)}.vm.wk{border-color:var(--c-wk)}
-.vm h4{margin:0;font-size:17px}.vm .meta{font-size:12.5px;color:var(--muted);font-family:ui-monospace,monospace;margin-bottom:8px}
-.pods{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
-.pod{border:1px solid var(--line);background:var(--panel2);border-radius:6px;font-size:11.5px;padding:3px 7px;color:var(--text);cursor:pointer;font-family:ui-monospace,monospace;border-left:4px solid var(--ns)}
-.pod:hover,.pod.sel{border-color:var(--amber)}
-.pod.dim{opacity:.18}
-.nsbar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 6px;align-items:center}
-.nsbtn{border:1px solid var(--line);background:var(--panel);border-radius:99px;padding:6px 14px;font-size:13.5px;color:var(--muted);display:inline-flex;gap:7px;align-items:center}
-.nsbtn:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--ns,var(--muted))}
-.nsbtn[aria-pressed=true]{border-color:var(--ns,var(--mint));color:var(--text);background:var(--panel2)}
-.podinfo{margin-top:12px;min-height:92px;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:14px 18px}
-.podinfo h4{margin:0 0 2px;font-family:ui-monospace,monospace;font-size:15px;color:var(--amber)}
-.taintrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.band{border:1px solid var(--ink);padding:16px 18px}
+.band+.band{margin-top:-1px}
+.band h3{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:baseline}
+.band h3 small{font-family:var(--body);font-weight:400;font-size:14.5px;color:var(--mute);letter-spacing:0}
+.band.in{margin-top:14px;border-style:dashed;border-color:var(--faint)}
+.svcs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.svcs span{border:1px solid var(--ink);padding:5px 11px;font-size:14.5px}
+.svcs span small{color:var(--mute);margin-left:6px}
+.vms{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.vm{border:2px solid var(--c);padding:14px;min-width:0}
+.vm.cp{--c:var(--cp)}.vm.wk{--c:var(--wk)}
+.vm h4{font-size:20px;font-weight:700}
+.vm .m{font-family:var(--mono);font-size:12.5px;color:var(--mute);margin:3px 0 8px}
+.vm .t{font-size:13.5px;color:var(--mute)}
+.pods{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.pod{border:1px solid var(--line);background:var(--bg);padding:3px 8px;font-family:var(--mono);font-size:11.5px;text-align:left}
+.pod:hover{border-color:var(--ink)}
+.pod[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.pod.dim{opacity:.22}
+.nsbar{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 0}
+.nsbar button{border:1px solid var(--line);background:none;padding:5px 13px;font-size:14px}
+.nsbar button[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:var(--on-acc)}
+.podinfo{border-top:1px solid var(--ink);margin-top:16px;padding-top:12px;min-height:84px}
+.podinfo h4{font-family:var(--mono);font-size:15px;font-weight:500;letter-spacing:0;margin-bottom:3px}
+.up{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-size:14.5px;color:var(--mute);margin-bottom:8px}
+.up span{border:1px solid var(--line);padding:4px 12px}
 
-/* timeline / steps */
-.steps{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;counter-reset:s}
-.steps button{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 10px;text-align:left;font-size:13.5px;color:var(--muted);line-height:1.3}
-.steps button b{display:block;color:var(--mint);font-family:ui-monospace,monospace;font-size:12px;margin-bottom:2px}
-.steps button[aria-selected=true]{border-color:var(--mint);color:var(--text);background:var(--panel2);box-shadow:0 0 0 1px var(--mint) inset}
-.stepbody{margin-top:16px}
-.where{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;margin-right:6px;color:#04121c}
-.where.both{background:linear-gradient(90deg,var(--c-cp),var(--c-wk))}.where.cp{background:var(--c-cp)}.where.wk{background:var(--c-wk)}
+/* cluster */
+.rail{display:grid;grid-template-columns:4fr 8fr;gap:48px;margin-top:34px;align-items:start}
+.steps{position:sticky;top:90px;display:flex;flex-direction:column;border-top:1px solid var(--ink)}
+.steps button{display:grid;grid-template-columns:34px 1fr;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:13px 4px;border-radius:0;font-size:17px;color:var(--mute)}
+.steps button b{font-family:var(--mono);font-weight:500;font-size:13px;padding-top:3px;color:var(--faint)}
+.steps button[aria-selected=true]{color:var(--ink);font-weight:600;box-shadow:inset 3px 0 0 var(--acc);padding-left:14px}
+.steps button small{grid-column:2;display:block;font-size:13px;font-weight:400;color:var(--faint)}
+.sbody h3{margin-bottom:8px}
+.where{display:inline-block;font-size:13.5px;border:1px solid var(--ink);padding:1px 10px;margin-bottom:12px}
 
-/* app diagram */
-.appmap{display:grid;grid-template-columns:1fr auto 1.1fr auto 1fr;gap:10px;align-items:stretch}
-.node{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--panel2);font-size:14px}
-.node b{display:block;font-size:15px}
-.node.sel{border-color:var(--mint)}
-.arrow{display:grid;place-items:center;color:var(--faint);font-size:22px}
-.rep{display:flex;gap:6px;margin:8px 0}
-.rep span{flex:1;text-align:center;border-radius:8px;background:color-mix(in srgb,var(--c-wk) 25%,var(--panel));border:1px solid var(--c-wk);padding:6px 0;font-size:12px;font-family:ui-monospace,monospace}
-.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:18px}
-.fact{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
-.fact b{display:block;margin-bottom:3px}.fact p{font-size:14.5px;margin:0;color:var(--muted)}
+/* app */
+.flow{display:grid;grid-template-columns:1fr 34px 1.2fr 34px 1.2fr;align-items:stretch;margin-top:34px}
+.fn{border:1px solid var(--ink);padding:16px}
+.fn b{display:block;font-family:var(--display);font-size:19px;font-weight:680;letter-spacing:-.015em}
+.fn .s{font-size:14px;color:var(--mute);margin-top:4px}
+.fl{align-self:center;height:1px;background:var(--ink);position:relative}
+.fl:after{content:"";position:absolute;right:0;top:-4px;border:4px solid transparent;border-left:7px solid var(--ink);border-right:0}
+.reps{display:flex;gap:6px;margin:10px 0 6px}
+.reps span{flex:1;text-align:center;padding:5px;font-size:13px;background:var(--wk);color:var(--on-wk);font-family:var(--mono)}
+.defs{display:grid;grid-template-columns:1fr 1fr;gap:0 48px;margin:44px 0 0}
+.defs div{border-top:1px solid var(--line);padding:16px 0 10px}
+.defs dt{font-family:var(--display);font-size:19px;font-weight:680;margin-bottom:3px;letter-spacing:-.01em}
+.defs dd{margin:0;color:var(--mute);font-size:16px;max-width:52ch}
+
+/* monitoring */
+.chain3{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid var(--ink);margin-top:30px}
+.chain3>div{padding:16px 24px 8px 0}
+.chain3>div+div{border-left:1px solid var(--line);padding-left:24px}
+.chain3 h3{margin-bottom:8px}
+.chain3 ul{list-style:none;padding:0;margin:0}
+.chain3 li{padding:3px 0;font-size:16px}
+.chain3 li small{color:var(--faint);font-family:var(--mono);font-size:12px;margin-left:6px}
+.shot2{display:grid;grid-template-columns:8fr 5fr;gap:24px;margin-top:40px;align-items:start}
 
 /* pipeline */
-.pipe{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;position:relative}
-.stage{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:12px 8px;text-align:center;font-size:13px;transition:.3s;position:relative}
-.stage .em{font-size:22px;display:block}
-.stage small{display:block;color:var(--faint);font-size:11.5px;margin-top:2px}
-.stage.on{border-color:var(--mint);background:var(--panel2);transform:translateY(-4px);box-shadow:0 10px 30px rgba(94,234,212,.15)}
-.stage.done{border-color:color-mix(in srgb,var(--mint) 50%,var(--line))}
-.stage.srv{border-bottom:3px solid var(--c-host)}.stage.clu{border-bottom:3px solid var(--c-wk)}.stage.ext{border-bottom:3px solid var(--violet)}
-.pipecap{margin-top:16px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center}
-.progress{height:4px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:14px}
-.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mint),var(--blue));transition:width .4s}
-.ba{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}
-.ba .card ol{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:15.5px}
-.ba .before{opacity:.85}
-.badge{font-size:11.5px;font-weight:800;letter-spacing:.12em;padding:3px 9px;border-radius:6px;margin-right:8px}
-.badge.old{background:color-mix(in srgb,var(--rose) 25%,transparent);color:var(--rose)}
-.badge.new{background:color-mix(in srgb,var(--mint) 25%,transparent);color:var(--mint)}
+.track{display:grid;grid-template-columns:repeat(7,1fr);margin-top:34px;border-bottom:1px solid var(--ink)}
+.track button{background:none;border:0;border-top:3px solid var(--line);border-radius:0;text-align:left;padding:12px 10px 16px 0;margin-right:10px;color:var(--faint)}
+.track button b{display:block;font-family:var(--display);font-size:18px;font-weight:680;color:var(--mute);letter-spacing:-.01em}
+.track button small{font-size:13px}
+.track button[aria-current=step]{border-top-color:var(--acc)}
+.track button[aria-current=step] b{color:var(--ink)}
+.track button.done{border-top-color:var(--ink)}
+.pcap{display:grid;grid-template-columns:1fr auto;gap:28px;align-items:center;padding:20px 0 0;min-height:112px}
+.pcap h3{margin-bottom:6px}
+.pcap p{margin:0}
+.pctl{display:flex;gap:8px}
+.diff{margin:34px 0 0;font-family:var(--mono);font-size:13.5px;line-height:1.7;border:1px solid var(--line)}
+.diff div{padding:1px 16px;white-space:pre-wrap;overflow-wrap:anywhere}
+.diff .a{background:var(--add-bg);color:var(--add)}.diff .d{background:var(--del-bg);color:var(--del)}
+.diff .h{color:var(--faint);padding-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px;align-items:start}
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:0 48px;margin-top:40px}
+.notes div{border-top:1px solid var(--line);padding:16px 0 8px}
 
-/* access chain */
-.chain{display:grid;grid-template-columns:repeat(5,1fr);gap:0;align-items:stretch;position:relative}
-.hop{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center;font-size:13.5px;position:relative;z-index:1}
-.hop b{display:block;font-size:14.5px}.hop code{display:inline-block;margin-top:6px;font-size:11px}
-.hop.act{border-color:var(--amber)}
-.link{position:relative;display:grid;place-items:center;min-width:26px}
-.chain{grid-template-columns:1fr 26px 1fr 26px 1fr 26px 1fr 26px 1fr}
-.link:before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:repeating-linear-gradient(90deg,var(--blue) 0 5px,transparent 5px 10px);animation:dashx 1s linear infinite}
-@keyframes dashx{to{background-position:10px 0}}
+/* access */
+.hops{display:grid;grid-template-columns:repeat(5,1fr);margin-top:30px;border-top:1px solid var(--ink)}
+.hops>div{padding:16px 16px 8px 0}
+.hops>div+div{border-left:1px solid var(--line);padding-left:16px}
+.hops b{font-family:var(--display);font-size:18px;font-weight:680;display:block;margin-bottom:4px}
+.hops p{font-size:14.5px;color:var(--mute);margin-bottom:8px}
+.hops code{font-size:11.5px;display:block;overflow-wrap:anywhere}
 
-/* lessons */
-.lesson{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
-.lesson .n{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--panel2);font-weight:800;color:var(--amber)}
-.lesson p{margin:4px 0;font-size:15.5px;color:var(--muted)}
-.lesson b.t{color:var(--text)}
-details.more{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
-details.more summary{cursor:pointer;color:var(--blue);font-size:14.5px}
+/* problems */
+.probs{display:grid;grid-template-columns:1fr 1fr;gap:0 56px;margin-top:34px}
+.prob{border-top:1px solid var(--ink);padding:18px 0 26px}
+.prob dl{margin:12px 0 0;display:grid;grid-template-columns:82px 1fr;gap:6px 14px;font-size:16px}
+.prob dt{color:var(--faint);font-size:14px;padding-top:2px}
+.prob dd{margin:0;color:var(--mute)}
+.prob dd b{color:var(--ink);font-weight:500}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--acc);font-size:15px}
+details .fig{margin-top:10px}
 
 /* inventory */
-.tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.tools input{flex:1;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--text);font:inherit;font-size:15px}
-.tablebox{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
-th{position:sticky;top:0;background:var(--panel2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-td.mono{font-size:12.5px}tr:last-child td{border-bottom:0}
-.k-d{color:var(--blue)}.k-s{color:var(--violet)}.k-ds{color:var(--amber)}
+.tools{display:flex;gap:12px;flex-wrap:wrap;margin:26px 0 14px}
+.tools input{flex:1;min-width:220px;background:var(--bg);border:1px solid var(--ink);padding:10px 14px;font:inherit;font-size:15.5px;color:var(--ink);border-radius:var(--r)}
+.tools input::placeholder{color:var(--faint)}
+.tbox{overflow:auto}
+#inv td{font-size:14.5px;white-space:nowrap;font-family:var(--body);font-weight:400}
+#inv td:first-child{font-family:var(--body);font-size:14.5px;font-weight:500;color:var(--mute)}
+#inv td.m{font-family:var(--mono);font-size:12.5px}
 
-footer{margin-top:90px;border-top:1px solid var(--line);padding:36px 0 60px;color:var(--muted);font-size:14.5px}
-footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+footer{margin-top:120px;border-top:1px solid var(--ink);padding:34px 0 64px}
+footer .wrap{display:grid;grid-template-columns:5fr 7fr;gap:48px;font-size:15px;color:var(--mute)}
+footer b{font-family:var(--display);font-size:22px;color:var(--ink);font-weight:700;letter-spacing:-.02em}
 
-.reveal{opacity:0;transform:translateY(16px);transition:opacity .7s,transform .7s}
-.reveal.in{opacity:1;transform:none}
-
-@media(max-width:980px){
-  .g3{grid-template-columns:1fr 1fr}.lab{grid-template-columns:1fr}
-  .stats{grid-template-columns:1fr 1fr}.steps{grid-template-columns:repeat(3,1fr)}
-  .pipe{grid-template-columns:repeat(4,1fr)}.svc-row{grid-template-columns:1fr 1fr}
-  .appmap{grid-template-columns:1fr}.arrow{transform:rotate(90deg);height:24px}
-  .chain{grid-template-columns:1fr;gap:0}.link{height:24px}.link:before{left:50%;right:auto;top:0;bottom:0;width:2px;height:auto;background:repeating-linear-gradient(var(--blue) 0 5px,transparent 5px 10px)}
+[class*=grid]>*,.rail>*,.split>*,.lead-row>*,.shot2>*,.shots>*{min-width:0}
+@media(max-width:1000px){
+  .hero-grid,.lead-row,.split,.rail,.shot2,.footer-grid,footer .wrap{grid-template-columns:1fr;gap:32px}
+  .facts{grid-template-columns:1fr 1fr}.chain3{grid-template-columns:1fr}.chain3>div+div{border-left:0;padding-left:0;border-top:1px solid var(--line)}
+  .track{grid-template-columns:repeat(4,1fr)}.hops{grid-template-columns:1fr 1fr}.hops>div:nth-child(odd){border-left:0;padding-left:0}
+  .steps{position:static;flex-direction:row;overflow-x:auto;border-top:0;border-bottom:1px solid var(--ink)}
+  .steps button{display:block;min-width:130px;box-shadow:none!important;padding:10px 12px!important;border-bottom:0}.steps button[aria-selected=true]{border-bottom:3px solid var(--acc)}
+  .steps button b{display:block}.steps button small{display:none}
+  .flow{grid-template-columns:1fr}.fl{width:1px;height:26px;justify-self:center}.fl:after{right:-4px;top:auto;bottom:0;border:4px solid transparent;border-top:7px solid var(--ink);border-bottom:0;border-left:4px solid transparent}
+  .defs,.probs,.notes,.shots{grid-template-columns:1fr}
 }
-@media(max-width:700px){
-  body{font-size:16px}.wrap{padding:0 16px}.g2,.g3,.shots,.ba,.vms{grid-template-columns:1fr}
-  .hero{padding-top:44px}section{padding-top:60px}
-  .steps{grid-template-columns:repeat(2,1fr)}.pipe{grid-template-columns:repeat(2,1fr)}
-  .readout{grid-template-columns:1fr 1fr}.pipecap{grid-template-columns:1fr}
-  .lane{grid-template-columns:repeat(28,1fr)}.logo span{display:none}
+@media(max-width:640px){
+  body{font-size:16px}.wrap{padding:0 18px}section{padding-top:76px}
+  .vms{grid-template-columns:1fr}.track{grid-template-columns:repeat(2,1fr)}.hops{grid-template-columns:1fr}.hops>div+div{border-left:0;padding-left:0;border-top:1px solid var(--line)}
+  .pcap{grid-template-columns:1fr}.brand{font-size:17px}.hero{min-height:0}.cores{gap:8px}.tile b{font-size:16px}
+  .prob dl{grid-template-columns:1fr}.facts{grid-template-columns:1fr 1fr}
 }
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}.reveal{opacity:1;transform:none}}
-@media print{.top,.tools,.cta,.seg,.iconbtn{display:none!important}.reveal{opacity:1;transform:none}body{background:#fff;color:#000}section{break-inside:avoid}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+@media print{.nav,.tools,.cta,.seg,.pctl{display:none}body{background:#fff;color:#000}section{padding-top:36px;break-inside:avoid}}
 </style>
 </head>
 <body>
 
-<header class="top">
+<header class="nav">
   <div class="wrap">
-    <a class="logo" href="#top"><i></i><span>old-laptop / k8s</span></a>
-    <nav id="nav" aria-label="Sections">
-      <a href="#overview">Overview</a><a href="#machine">The machine</a><a href="#architecture">Architecture</a><a href="#kubeadm">kubeadm</a><a href="#app">The app</a><a href="#monitoring">Monitoring</a><a href="#cicd">CI/CD</a><a href="#access">Access</a><a href="#lessons">Lessons</a><a href="#inventory">Inventory</a>
+    <a class="brand" href="#top">Old Laptop Cluster</a>
+    <nav class="links" id="links" aria-label="Sections">
+      <a href="#hardware">Hardware</a><a href="#architecture">Architecture</a><a href="#cluster">Cluster</a><a href="#app">Application</a><a href="#monitoring">Monitoring</a><a href="#pipeline">Pipeline</a><a href="#access">Access</a><a href="#problems">Problems</a><a href="#inventory">Inventory</a>
     </nav>
-    <button class="iconbtn" id="theme" aria-label="Toggle light and dark theme" title="Toggle theme">◐</button>
+    <button class="tbtn" id="theme" aria-label="Switch between light and dark theme">Theme</button>
   </div>
 </header>
 
 <main id="top">
 <div class="wrap">
 
-<!-- HERO -->
-<div class="hero" id="overview">
-  <div class="eyebrow">DevOps home lab · real hardware · real cluster</div>
-  <h1>A full GitOps platform,<br>on a <em>decade-old laptop</em>.</h1>
-  <p class="lead">Kubernetes, CI/CD, GitOps and monitoring, all running on one 8&nbsp;GB laptop with 2 CPU cores. One <code>git push</code> builds, scans and ships a new version to the cluster, with no manual steps.</p>
-  <div class="chips">
-    <span class="chip"><b>Kubernetes</b> v1.35.9 · kubeadm</span>
-    <span class="chip"><b>Jenkins</b> CI</span>
-    <span class="chip"><b>Argo CD</b> v3.6.1</span>
-    <span class="chip"><b>Prometheus</b> + <b>Grafana</b></span>
-    <span class="chip"><b>KVM / libvirt</b></span>
-    <span class="chip"><b>Flannel</b> · containerd</span>
-  </div>
-  <div class="cta">
-    <a class="btn pri" href="#machine">See how 3 machines share 2 CPUs →</a>
-    <a class="btn" href="#cicd">Watch a deploy</a>
-    <a class="btn" href="https://github.com/Moaz-Elgendy/ivolve-project">GitHub repo ↗</a>
-  </div>
-  <div class="stats">
-    <div class="stat"><b>8 GB</b><span>DDR3 RAM, shared by everything</span></div>
-    <div class="stat"><b>2C / 4T</b><span>Core i5-3230M @ 2.6 GHz</span></div>
-    <div class="stat"><b id="s-pods">28</b><span>pods running right now</span></div>
-    <div class="stat"><b>0</b><span>manual <code>kubectl apply</code> per release</span></div>
-  </div>
+<div class="hero">
+  <h1>A full GitOps pipeline on one old laptop.</h1>
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <p class="lede">Kubernetes, Jenkins, Argo CD and Prometheus, sharing 2 CPU cores and 8&nbsp;GB of RAM.</p>
+      <div class="cta"><a class="btn pri" href="#pipeline">Watch a deploy</a><a class="btn" href="https://github.com/Moaz-Elgendy/ivolve-project">View the repo</a></div>
+      <p class="small" style="margin-top:22px;max-width:44ch">The panel on the right is the whole problem in one picture. Four CPU threads, six things that want to run. Start a Jenkins build and watch the queue grow.</p>
+    </div>
 
-  <div class="plain reveal"><b>In plain English:</b> I turned an old laptop into a small cloud. Two virtual computers form a Kubernetes cluster that runs a web app and its database. When I change the code and push it to GitHub, the laptop automatically builds a new version, scans it for security problems, and rolls it out. Dashboards show how healthy everything is.</div>
-
-  <div class="grid g3 reveal" style="margin-top:26px">
-    <div class="card"><h3><span class="ico">🖥️</span>The platform</h3><p class="muted">A 2-node Kubernetes cluster built by hand with <code>kubeadm</code> inside two KVM virtual machines on a Debian server.</p></div>
-    <div class="card"><h3><span class="ico">🚀</span>The delivery</h3><p class="muted">Jenkins builds, scans (Trivy) and pushes the image. Argo CD notices the Git change and syncs the cluster. Git is the single source of truth.</p></div>
-    <div class="card"><h3><span class="ico">📈</span>The visibility</h3><p class="muted">Prometheus, Alertmanager and Grafana (Helm) watch both nodes with node-exporter and kube-state-metrics.</p></div>
+    <div class="chip" role="group" aria-label="CPU scheduling illustration">
+      <div class="chip-top">
+        <strong>Core i5-3230M, 4 threads</strong>
+        <div class="seg"><button id="m-idle" aria-pressed="true">Idle</button><button id="m-busy" aria-pressed="false">Jenkins build</button><button id="pause" aria-label="Pause the animation">Pause</button></div>
+      </div>
+      <div class="cores" id="cores"></div>
+      <div class="queue" id="queue" aria-live="polite"></div>
+      <div class="ram">
+        <div class="ram-bar" role="img" aria-label="8 GB RAM: 3 GB for k8s-cp, 3 GB for k8s-worker, about 2 GB left for the host">
+          <div style="width:37.5%;background:var(--cp);color:var(--on-cp)">k8s-cp 3 GB</div><div style="width:37.5%;background:var(--wk);color:var(--on-wk)">k8s-worker 3 GB</div><div style="width:25%;background:var(--host);color:var(--on-host)">host 2 GB</div>
+        </div>
+        <div class="ram-cap"><span>8 GB DDR3 in total</span><span>Illustration of CPU time-slicing, not a measurement</span></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- MACHINE -->
-<section id="machine">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">01</span>The hardware trick</div>
-    <h2>Three “computers”. One set of 2 cores.</h2>
-    <p class="lead">The server and both VMs are not separate machines. They all borrow time on the same CPU and the same 8&nbsp;GB of RAM. Here's how that works.</p>
-  </div>
-
-  <div class="lab reveal">
-    <div class="sched">
-      <div class="row" style="justify-content:space-between">
-        <div><div class="eyebrow">Live illustration</div><h3 style="margin-top:4px">Who runs on each CPU thread?</h3></div>
-        <div class="seg" role="group" aria-label="Workload scenario">
-          <button id="m-idle" aria-pressed="true">Idle cluster</button><button id="m-busy" aria-pressed="false">Jenkins build running</button>
-        </div>
-      </div>
-      <div class="lanes" id="lanes" aria-hidden="true"></div>
-      <div class="key"><span style="--k:var(--c-host)">Host OS</span><span style="--k:var(--c-jen)">Jenkins · Docker · Trivy</span><span style="--k:var(--c-cp)">k8s-cp vCPUs</span><span style="--k:var(--c-wk)">k8s-worker vCPUs</span></div>
-      <div class="readout" aria-live="polite">
-        <div><b id="r-host">–</b>host</div><div><b id="r-jen">–</b>build tools</div><div><b id="r-cp">–</b>k8s-cp</div><div><b id="r-wk">–</b>k8s-worker</div>
-      </div>
-      <div class="row" style="margin-top:12px;justify-content:space-between">
-        <span class="note" id="r-wait">Threads waiting for a free CPU: –</span>
-        <button class="btn" id="pause" style="padding:6px 14px;font-size:13px">Pause</button>
-      </div>
-      <p class="note">Each column is one scheduler time slice (a few milliseconds in reality, slowed down here). It's an illustration of how Linux shares CPUs, not a measurement of my machine.</p>
-    </div>
-
-    <div class="card">
-      <h3>CPU: 4 threads, 6+ runners</h3>
-      <div class="layers">
-        <div class="layer host"><b>Host (Debian 13)</b><small>Sees 2 cores × 2 hyper-threads = <b>4 logical CPUs</b>. Runs Jenkins, Docker, Trivy, libvirt.</small></div>
-        <div class="layer vm1"><b>VM k8s-cp</b><small>Told it has <b>2 vCPUs</b>. Each vCPU is just a thread of one <code>qemu</code> process on the host.</small></div>
-        <div class="layer vm2"><b>VM k8s-worker</b><small>Also <b>2 vCPUs</b>, also just 2 host threads.</small></div>
-      </div>
-      <p style="margin-top:14px">KVM lets a VM's vCPU thread run straight on the physical CPU. The host's Linux scheduler treats those threads like any other program, so VMs, Jenkins and the host OS all queue for the <b>same 4 logical CPUs</b>.</p>
-      <p class="note">Hyper-threads share one core's execution units, so “4 CPUs” is roughly 2.5 cores of real throughput, not 4.</p>
+<!-- plain english -->
+<section id="plain" style="padding-top:64px">
+  <div class="lead-row">
+    <h2>What this is, in plain English</h2>
+    <div>
+      <p class="statement">I turned an old laptop into a small cloud. <span>Two virtual computers run a website and its database. When I push new code to GitHub, the laptop builds it, scans it for security problems and rolls it out by itself.</span></p>
     </div>
   </div>
-
-  <div class="grid g2 reveal" style="margin-top:18px">
-    <div class="card">
-      <h3>Memory: 8 GB, split three ways</h3>
-      <div class="meter" role="img" aria-label="8 GB total: 3 GB k8s-cp, 3 GB k8s-worker, about 2 GB left for the host">
-        <div style="width:37.5%;background:var(--c-cp)">k8s-cp 3 GB</div><div style="width:37.5%;background:var(--c-wk)">k8s-worker 3 GB</div><div style="width:25%;background:var(--c-host)">host ≈2 GB</div>
-      </div>
-      <p class="muted" style="font-size:15.5px">A VM's “RAM” is ordinary host memory held by its QEMU process. After 6 GB goes to the VMs, only about 2 GB remains for the host OS, Jenkins, Docker builds, Trivy and the page cache.</p>
-    </div>
-    <div class="card">
-      <h3>Why it matters: the scheduler says no</h3>
-      <p class="muted" style="font-size:15.5px">The worker node reports exactly <code>cpu: 2</code> and about <code>2.9 GiB</code> allocatable. When I asked each pod for 1 CPU and 1 GiB, Kubernetes refused to place the new pod:</p>
-      <figure class="fig" style="margin:10px 0 0"><img src="assets/failed-scheduling.png" alt="FailedScheduling event: 0/2 nodes available, 1 Insufficient cpu, 1 node had untolerated taint" loading="lazy"><figcaption>Real event from lab 16. I fixed it by right-sizing requests to 200m CPU / 500 Mi.</figcaption></figure>
-    </div>
-  </div>
-
-  <div class="plain reveal"><b>Why VMs at all?</b> Docker (used by Jenkins to build images) and Kubernetes both drive <code>containerd</code>. On one OS they'd step on each other. Running Kubernetes inside VMs keeps its runtime isolated, and Jenkins, Docker and Trivy stay on the host as plain systemd services.</div>
+  <dl class="facts">
+    <div><dt>v1.35.9</dt><dd>Kubernetes, built by hand with kubeadm</dd></div>
+    <div><dt id="s-pods">28</dt><dd>pods running across the two nodes</dd></div>
+    <div><dt>2</dt><dd>KVM virtual machines on one physical laptop</dd></div>
+    <div><dt>0</dt><dd>manual <code>kubectl apply</code> commands per release</dd></div>
+  </dl>
 </section>
 
-<!-- ARCHITECTURE -->
-<section id="architecture">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">02</span>Architecture</div>
-    <h2>The whole stack, layer by layer.</h2>
-    <p class="lead">I call the laptop <b>“server”</b>. It's the only physical machine, and I reach it over SSH from my main PC. Everything stays on my private network. Click any pod to see what it does.</p>
+<!-- hardware -->
+<section id="hardware">
+  <h2>Three computers, one set of cores</h2>
+  <p class="lede">The server and both VMs are not separate machines. They borrow time on the same CPU and the same RAM.</p>
+  <table style="margin-top:34px">
+    <thead><tr><th>Machine</th><th>What it believes it has</th><th>What it really is</th></tr></thead>
+    <tbody>
+      <tr><td>Server</td><td>2 cores, 4 hyper-threads, 8 GB</td><td>The only physical machine. Debian 13 without a GUI, running Jenkins, Docker, Trivy and libvirt as plain services.</td></tr>
+      <tr><td>k8s-cp</td><td>2 vCPUs, 3 GB</td><td>A <code>qemu</code> process on the server. Each vCPU is one host thread, scheduled like any other program.</td></tr>
+      <tr><td>k8s-worker</td><td>2 vCPUs, 3 GB</td><td>The same again. Kubernetes reports exactly <code>cpu: 2</code> and about 2.9 GiB allocatable.</td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:48px">
+    <h3>The scheduler said no</h3>
+    <p class="mute" style="margin-top:10px">When I asked each app pod for 1 CPU and 1 GiB, Kubernetes refused to place the extra pod needed for a rolling update. The worker only has 2 vCPUs, and they are shared with everything else on the laptop. I cut the request to 200m CPU and 500 Mi and raised the pod quota from 3 to 4. Hyper-threads also share one core's execution units, so 4 logical CPUs deliver roughly 2.5 cores of real throughput.</p>
+    <figure class="fig" style="margin-top:14px"><img src="assets/failed-scheduling.png" alt="Kubernetes event: FailedScheduling, 0/2 nodes available, 1 Insufficient cpu, 1 node had untolerated taint" loading="lazy"><figcaption>The real event from the lab: <code>1 Insufficient cpu</code>.</figcaption></figure>
   </div>
+  <div class="statement" style="font-size:clamp(22px,2.6vw,32px);margin-top:56px;max-width:44ch;border-top:1px solid var(--ink);padding-top:22px">Why VMs at all? Docker and Kubernetes both drive <code style="font-size:.7em">containerd</code>, so on one OS they would collide. <span>Kubernetes lives in the VMs. Jenkins, Docker and Trivy stay on the host.</span></div>
+</section>
 
-  <div class="arch reveal">
-    <div class="pc"><span class="pill">💻 Main PC (browser · SSH)</span><span class="pill">🐙 GitHub</span><span class="pill">🐳 Docker Hub</span></div>
-    <div class="wire"></div><div class="wirelabel">LAN 192.168.1.0/24 · SSH</div>
-    <div class="server">
-      <header><h3>🖧 server <span class="muted" style="font-weight:400">· old laptop · Debian 13 · 192.168.1.5 · no GUI</span></h3><span class="tag">i5-3230M · 2C/4T · 8 GB · 500 GB HDD</span></header>
-      <div class="svc-row">
-        <div class="svc jen"><b>Jenkins</b><small>systemd · the CI engine</small></div>
-        <div class="svc jen"><b>Docker</b><small>builds the images</small></div>
-        <div class="svc jen"><b>Trivy</b><small>systemd · vuln scanner</small></div>
-        <div class="svc"><b>libvirt / KVM</b><small>runs the 2 VMs (virsh)</small></div>
-      </div>
-      <div class="net"><span class="nl">virbr0 · libvirt NAT · 192.168.122.0/24</span>
+<!-- architecture -->
+<section id="architecture">
+  <h2>The whole stack, top to bottom</h2>
+  <p class="lede">The laptop is called the server. It is the only physical machine, and I reach it over SSH from my main PC. Nothing is exposed to the internet. Select a pod to see what it does.</p>
+  <div style="margin-top:34px">
+    <div class="up"><span>Main PC</span><span>GitHub</span><span>Docker Hub</span></div>
+    <div class="band">
+      <h3>Server <small>Debian 13, 192.168.1.5, i5-3230M, 8 GB, 500 GB HDD</small></h3>
+      <div class="svcs"><span>Jenkins<small>systemd</small></span><span>Docker</span><span>Trivy<small>systemd</small></span><span>libvirt and KVM<small>virsh</small></span></div>
+      <div class="band in">
+        <h3>virbr0 <small>libvirt NAT network, 192.168.122.0/24</small></h3>
         <div class="vms">
-          <div class="vm cp"><h4>k8s-cp <span class="tag b">control plane</span></h4><div class="meta">192.168.122.69 · 2 vCPU · 3 GB</div><div class="taintrow"><span class="tag a">taint: control-plane:NoSchedule</span></div><div class="pods" id="pods-cp"></div></div>
-          <div class="vm wk"><h4>k8s-worker <span class="tag m">worker</span></h4><div class="meta">192.168.122.242 · 2 vCPU · 3 GB</div><div class="taintrow"><span class="tag a">taint: workload=ivolveApp</span><span class="tag m">label: project=ivolve</span></div><div class="pods" id="pods-wk"></div></div>
+          <div class="vm cp"><h4>k8s-cp</h4><div class="m">192.168.122.69, 2 vCPU, 3 GB</div><div class="t">Control plane. Keeps the default NoSchedule taint.</div><div class="pods" id="pods-cp"></div></div>
+          <div class="vm wk"><h4>k8s-worker</h4><div class="m">192.168.122.242, 2 vCPU, 3 GB</div><div class="t">Taint <code>workload=ivolveApp</code>, label <code>project=ivolve</code>. Runs the app.</div><div class="pods" id="pods-wk"></div></div>
         </div>
       </div>
     </div>
   </div>
   <div class="nsbar" id="nsbar" role="group" aria-label="Filter pods by namespace"></div>
-  <div class="podinfo" id="podinfo" aria-live="polite"><h4>Select a pod</h4><p class="muted" style="margin:0">Each chip is a real pod from <code>kubectl get pods -A -o wide</code>. Colour = namespace.</p></div>
-  <div class="grid g2" style="margin-top:18px">
-    <div class="card reveal"><h3>Why is the app only on the worker?</h3><p class="muted">The worker is <b>tainted</b> <code>workload=ivolveApp:NoSchedule</code> and <b>labelled</b> <code>project=ivolve</code>. The app and database carry a matching toleration and <code>nodeSelector</code>, so they land there. The control plane keeps its default taint and mostly runs system components, with monitoring pods tolerating it.</p></div>
-    <div class="card reveal"><h3>Honest trade-off</h3><p class="muted">This is a single control plane (no HA) on shared hardware. It's built to learn and to show real GitOps, not to survive losing the laptop.</p></div>
+  <div class="podinfo" id="podinfo" aria-live="polite"><h4>Select a pod</h4><p class="mute" style="margin:0">Every chip is a real pod from <code>kubectl get pods -A -o wide</code>.</p></div>
+</section>
+
+<!-- cluster -->
+<section id="cluster">
+  <h2>Building the cluster with kubeadm</h2>
+  <p class="lede">Two fresh Debian 13 VMs in, one Kubernetes v1.35.9 cluster out. Pick a step.</p>
+  <div class="rail">
+    <div class="steps" id="ksteps" role="tablist" aria-label="Cluster build steps"></div>
+    <div class="sbody" id="kbody" role="tabpanel" aria-live="polite"></div>
+  </div>
+  <div class="split">
+    <figure class="fig"><img src="assets/cluster-validation.png" alt="Terminal: kubectl get nodes shows k8s-cp and k8s-worker Ready on v1.35.9, and the worker joining" loading="lazy"><figcaption>The moment it worked. Both nodes <code>Ready</code> on v1.35.9. The join token is redacted.</figcaption></figure>
+    <dl class="defs" style="grid-template-columns:1fr;margin-top:0">
+      <div><dt>Runtime</dt><dd>containerd 2.2.2 with runc</dd></div>
+      <div><dt>Network</dt><dd>Flannel v0.28.10 over VXLAN, pod range 10.244.0.0/16</dd></div>
+      <div><dt>Operating system</dt><dd>Debian 13 (trixie), kernel 6.12</dd></div>
+    </dl>
   </div>
 </section>
 
-<!-- KUBEADM -->
-<section id="kubeadm">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">03</span>Building the cluster</div>
-    <h2>kubeadm, step by step.</h2>
-    <p class="lead">Two Debian 13 VMs in, one working Kubernetes v1.35.9 cluster out. Pick a stage.</p>
-  </div>
-  <div class="reveal">
-    <div class="steps" id="ksteps" role="tablist" aria-label="Cluster build stages"></div>
-    <div class="card stepbody" id="kbody" role="tabpanel" aria-live="polite"></div>
-  </div>
-  <div class="grid g2 reveal" style="margin-top:18px">
-    <figure class="fig"><img src="assets/cluster-validation.png" alt="Terminal showing both nodes Ready on v1.35.9, system pods running, and the worker joining the cluster" loading="lazy"><figcaption>The moment it worked: <code>kubectl get nodes</code> shows both nodes <code>Ready</code> on v1.35.9. The join token is redacted.</figcaption></figure>
-    <div class="card"><h3>What the nodes report</h3>
-      <div class="facts" style="grid-template-columns:1fr 1fr;margin-top:8px">
-        <div class="fact"><b>Kubernetes</b><p>v1.35.9</p></div><div class="fact"><b>Runtime</b><p>containerd 2.2.2 + runc</p></div>
-        <div class="fact"><b>OS</b><p>Debian 13 (trixie)</p></div><div class="fact"><b>CNI</b><p>Flannel v0.28.10 · VXLAN</p></div>
-        <div class="fact"><b>Pod network</b><p>10.244.0.0/16</p></div><div class="fact"><b>Pod limit/node</b><p>110</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- APP -->
+<!-- app -->
 <section id="app">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">04</span>The application</div>
-    <h2>The <code style="font-size:.8em">ivolve</code> namespace.</h2>
-    <p class="lead">A stateless web app with 2 replicas, talking to a stateful MySQL database through a headless service. This is the part Argo CD keeps in sync with Git.</p>
+  <h2>The application</h2>
+  <p class="lede">A stateless web app with 2 replicas, talking to MySQL through a headless service. All of it lives in the <code>ivolve</code> namespace, and it is the part Argo CD keeps in sync with Git.</p>
+  <div class="flow">
+    <div class="fn"><b>Service</b><div class="s">ivolve-app-svc, ClusterIP, port 3000</div></div>
+    <div class="fl"></div>
+    <div class="fn"><b>Deployment, 2 replicas</b><div class="reps"><span>pod 1</span><span>pod 2</span></div><div class="s"><code>mk0230/application-ivolve:15</code>. An init container waits for MySQL and creates the database.</div></div>
+    <div class="fl"></div>
+    <div class="fn"><b>Headless service</b><div class="s">ivolve-db-svc, clusterIP None, port 3306</div><div class="reps"><span style="flex:none;width:100%">StatefulSet ivolve-db, 1 replica</span></div><div class="s">Stable name <code>ivolve-db-0</code> and its own 5 Gi volume.</div></div>
   </div>
-  <div class="card reveal">
-    <div class="appmap">
-      <div class="node" data-n="svc"><b>Service · ivolve-app-svc</b>ClusterIP :3000<br><span class="muted">load-balances to ready app pods</span></div>
-      <div class="arrow">→</div>
-      <div class="node" data-n="dep"><b>Deployment · ivolve-app</b><div class="rep"><span>pod 1</span><span>pod 2</span></div>image <code>mk0230/application-ivolve:15</code><br><span class="muted">init container waits for MySQL, then creates the database</span></div>
-      <div class="arrow">→</div>
-      <div class="node" data-n="db"><b>Headless Service · ivolve-db-svc</b>clusterIP: None · :3306<div class="rep"><span style="width:100%;flex:none">StatefulSet ivolve-db · 1 replica</span></div><span class="muted">stable identity <code>ivolve-db-0</code> + its own volume</span></div>
-    </div>
-    <div class="facts">
-      <div class="fact"><b>Deployment: 2 replicas</b><p>Interchangeable pods. A rolling update replaces them one by one with no downtime.</p></div>
-      <div class="fact"><b>StatefulSet: 1 replica</b><p>MySQL needs a stable name and persistent disk, so it's a StatefulSet with a <code>volumeClaimTemplate</code> (5 Gi PV, <code>ivolve-storage</code>).</p></div>
-      <div class="fact"><b>Headless service</b><p><code>clusterIP: None</code> gives the DB a direct DNS name, <code>ivolve-db-0.ivolve-db…</code>, instead of a virtual IP.</p></div>
-      <div class="fact"><b>NetworkPolicy</b><p>Only pods labelled <code>app=ivolve-app</code> may reach the DB on TCP 3306. Everything else is denied.</p></div>
-      <div class="fact"><b>Config &amp; secrets</b><p>ConfigMap <code>ivolve-cm</code> (DB host/user), Secret <code>ivolve-secret</code> (passwords), <code>docker-hub-secret</code> to pull the image.</p></div>
-      <div class="fact"><b>Guardrails</b><p>ResourceQuota <code>ivolvequota</code>: max 4 pods (3 steady + 1 for a rolling-update surge). PVs use the <code>Retain</code> reclaim policy.</p></div>
-    </div>
-  </div>
-  <div class="plain reveal"><b>Plain English:</b> the website runs as two identical copies for safety, the database runs as one copy that keeps its data on a disk, and a rule makes sure only the website can talk to the database.</div>
+  <dl class="defs">
+    <div><dt>Why a Deployment for the app</dt><dd>Replicas are interchangeable, so a rolling update can swap them one at a time with no downtime.</dd></div>
+    <div><dt>Why a StatefulSet for MySQL</dt><dd>A database needs a stable name and a disk that follows it. The <code>volumeClaimTemplate</code> gives it both.</dd></div>
+    <div><dt>Why headless</dt><dd><code>clusterIP: None</code> gives the database a direct DNS name instead of a virtual IP in front of it.</dd></div>
+    <div><dt>Who may talk to the database</dt><dd>A NetworkPolicy allows TCP 3306 only from pods labelled <code>app=ivolve-app</code>.</dd></div>
+    <div><dt>Configuration</dt><dd>ConfigMap <code>ivolve-cm</code> for host and user, Secret <code>ivolve-secret</code> for passwords, <code>docker-hub-secret</code> to pull the image.</dd></div>
+    <div><dt>Guardrails</dt><dd>ResourceQuota <code>ivolvequota</code> allows 4 pods: 3 steady plus 1 surge pod during a rollout. Volumes use the Retain policy.</dd></div>
+  </dl>
 </section>
 
-<!-- MONITORING -->
+<!-- monitoring -->
 <section id="monitoring">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">05</span>Observability</div>
-    <h2>Watching both nodes.</h2>
-    <p class="lead">One Helm release, <code>monitoring-set</code> (<code>kube-prometheus-stack</code>), installs the whole stack into the <code>monitoring</code> namespace.</p>
+  <h2>Watching both nodes</h2>
+  <p class="lede">One Helm release, <code>monitoring-set</code>, installs <code>kube-prometheus-stack</code> into the <code>monitoring</code> namespace.</p>
+  <div class="chain3">
+    <div><h3>Collect</h3><ul><li>node-exporter<small>v1.12.1</small></li><li>kube-state-metrics<small>v2.20.0</small></li></ul><p class="small" style="margin-top:8px">node-exporter is a DaemonSet with one pod per node. kube-state-metrics reports on Kubernetes objects.</p></div>
+    <div><h3>Store</h3><ul><li>Prometheus<small>v3.15.1</small></li><li>Prometheus Operator<small>v0.94.2</small></li></ul><p class="small" style="margin-top:8px">The operator manages Prometheus and Alertmanager from Kubernetes objects.</p></div>
+    <div><h3>Show and alert</h3><ul><li>Grafana<small>13.3.0</small></li><li>Alertmanager<small>v0.34.2</small></li></ul><p class="small" style="margin-top:8px">Grafana ships with the Node Exporter dashboards. Alertmanager groups and routes alerts.</p></div>
   </div>
-  <div class="grid g3 reveal">
-    <div class="card"><h3>Prometheus <span class="tag">v3.15.1</span></h3><p class="muted">Scrapes metrics on a schedule and stores them as time series. Managed by the Prometheus Operator (<span class="tag">v0.94.2</span>).</p></div>
-    <div class="card"><h3>Grafana <span class="tag">13.3.0</span></h3><p class="muted">Turns metrics into dashboards: CPU, load and memory per node. Pre-provisioned Node Exporter dashboards.</p></div>
-    <div class="card"><h3>Alertmanager <span class="tag">v0.34.2</span></h3><p class="muted">Receives alerts from Prometheus, then groups, de-duplicates and routes them.</p></div>
-    <div class="card"><h3>node-exporter <span class="tag">v1.12.1</span></h3><p class="muted">A <b>DaemonSet</b>: one pod per node (2/2) exposing hardware and OS metrics on <code>:9100</code>.</p></div>
-    <div class="card"><h3>kube-state-metrics <span class="tag">v2.20.0</span></h3><p class="muted">Turns Kubernetes objects (deployments, pods, nodes) into metrics.</p></div>
-    <div class="card"><h3>Helm values</h3><p class="muted">One <code>values.yaml</code> adds a toleration to every component so they can also run on the tainted control plane.</p></div>
+  <div class="shot2">
+    <figure class="fig"><img src="assets/grafana-nodes.png" alt="Grafana Node Exporter dashboard for the worker: CPU usage, load average against logical cores, memory" loading="lazy"><figcaption>Grafana, Node Exporter dashboard for the worker (192.168.122.242). The orange line in the load chart is the number of logical cores.</figcaption></figure>
+    <figure class="fig"><img src="assets/prometheus-ui.png" alt="Prometheus query page" loading="lazy"><figcaption>Prometheus scraping <code>node-ip:9100</code> on both nodes. One <code>values.yaml</code> adds a toleration so the stack can also run on the tainted control plane.</figcaption></figure>
   </div>
-  <div class="shots reveal" style="margin-top:20px">
-    <figure class="fig"><img src="assets/grafana-nodes.png" alt="Grafana Node Exporter dashboard for the worker showing CPU usage, load average and memory usage" loading="lazy"><figcaption>Grafana · Node Exporter / Nodes for <code>192.168.122.242</code> (the worker): CPU, load vs. <em>logical cores</em>, and memory.</figcaption></figure>
-    <figure class="fig"><img src="assets/prometheus-ui.png" alt="Prometheus web UI query page" loading="lazy"><figcaption>Prometheus query UI, scraping <code>&lt;node-ip&gt;:9100</code> on both nodes.</figcaption></figure>
-  </div>
-  <pre><code><span class="c"># install: one command, whole stack</span>
+  <pre><code><span class="c"># the whole stack in one command</span>
 helm install monitoring-set prometheus-community/kube-prometheus-stack \
   -n monitoring --create-namespace -f values.yaml</code></pre>
 </section>
 
-<!-- CICD -->
-<section id="cicd">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">06</span>CI/CD + GitOps</div>
-    <h2>From <code style="font-size:.8em">git push</code> to running pod.</h2>
-    <p class="lead">Jenkins does CI (build, scan, push). Argo CD does CD (deploy). Jenkins no longer touches the cluster at all.</p>
+<!-- pipeline -->
+<section id="pipeline">
+  <h2>From git push to running pod</h2>
+  <p class="lede">Jenkins does the CI work: build, scan, push. Argo CD does the deploy. Jenkins never touches the cluster.</p>
+  <div class="track" id="track" role="group" aria-label="Pipeline steps"></div>
+  <div class="pcap"><div id="pcap" aria-live="polite"></div><div class="pctl"><button class="btn" id="pprev" aria-label="Previous step">Back</button><button class="btn pri" id="pplay">Play</button><button class="btn" id="pnext" aria-label="Next step">Next</button></div></div>
+
+  <h3 style="margin-top:56px">What changed when Argo CD arrived</h3>
+  <p class="mute" style="margin-top:8px">Before, a second Jenkins node on <code>k8s-cp</code> held a kubeconfig and ran <code>kubectl apply</code>. That node is retired and set aside. Now the last Jenkins stage only commits to Git.</p>
+  <div class="diff" role="img" aria-label="Pipeline diff: the DeployKubernetes stage on k8s-agent is replaced by UpdateManifestInGit on the built-in agent">
+    <div class="h">argocd/lab23/Jenkinsfile</div>
+    <div> stage('Checkout')       agent built-in</div>
+    <div> stage('BuildImage')     agent built-in   docker build, Trivy scan, push</div>
+    <div class="d">- stage('DeployKubernetes')   agent k8s-agent   kubectl apply with a kubeconfig</div>
+    <div class="a">+ stage('UpdateManifestInGit') agent built-in   commit the new image tag, message ends with [ci skip]</div>
   </div>
 
-  <div class="card reveal">
-    <div class="pipe" id="pipe"></div>
-    <div class="progress"><i id="pbar"></i></div>
-    <div class="pipecap">
-      <div id="pcap"></div>
-      <div class="row"><button class="btn" id="pprev" aria-label="Previous step">←</button><button class="btn pri" id="pplay">▶ Play</button><button class="btn" id="pnext" aria-label="Next step">→</button></div>
-    </div>
+  <div class="notes">
+    <div><h3>Argo CD settings</h3><p class="mute" style="margin-top:8px">Application <code>ivolve</code> watches <code>kubernetes/lab15</code> on <code>main</code> and deploys to the <code>ivolve</code> namespace with auto-sync, self-heal and prune. Self-heal reverts hand edits made with kubectl. Prune deletes what Git no longer contains.</p></div>
+    <div><h3>No build loop</h3><p class="mute" style="margin-top:8px">Jenkins' manifest commit would trigger another build. Its message ends with <code>[ci skip]</code>, and every stage has a <code>changelog</code> condition that skips it. Build 14 below ran only Checkout.</p></div>
   </div>
-
-  <div class="ba reveal">
-    <div class="card before"><h3><span class="badge old">BEFORE</span>Jenkins deploys</h3>
-      <ol><li>Jenkins builds, scans and pushes the image</li><li>A second Jenkins node (<code>k8s-agent</code>) on <code>k8s-cp</code> holds a <b>kubeconfig</b></li><li>It runs <code>kubectl apply</code> directly on the cluster</li></ol>
-      <p class="note">CI needed cluster credentials. Cluster state lived in Jenkins logs, not Git. That node is now retired and set aside.</p></div>
-    <div class="card"><h3><span class="badge new">NOW</span>Git is the source of truth</h3>
-      <ol><li>Jenkins builds, scans and pushes the image</li><li>Jenkins commits the new image tag to GitHub</li><li>Argo CD sees the commit and syncs the cluster</li></ol>
-      <p class="note">Jenkins needs <b>no cluster access</b>. Every deploy is a Git commit: auditable, revertable, and self-healing.</p></div>
-  </div>
-
-  <div class="grid g2 reveal" style="margin-top:18px">
-    <div class="card"><h3>Argo CD settings</h3>
-      <p class="muted">Application <code>ivolve</code> watches <code>kubernetes/lab15</code> on <code>main</code> and deploys to the <code>ivolve</code> namespace.</p>
-      <span class="tag m">Auto-sync</span><span class="tag m">Self-heal</span><span class="tag m">Prune</span>
-      <p class="muted" style="font-size:15px;margin-top:10px"><b>Auto-sync</b>: apply every new commit. <b>Self-heal</b>: if someone edits the live cluster by hand, revert it to Git. <b>Prune</b>: delete from the cluster what's deleted in Git.</p></div>
-    <div class="card"><h3>No infinite loop</h3>
-      <p class="muted">Jenkins' own manifest commit would trigger another build. Its message ends with <code>[ci skip]</code> and every stage has <code>when { not { changelog '.*\[ci skip\].*' } }</code>. Build 14 below proves it: only Checkout runs.</p></div>
-  </div>
-  <div class="shots reveal" style="margin-top:6px">
-    <figure class="fig"><img src="assets/jenkins-14-15.png" alt="Jenkins stage view: build 14 only runs Checkout (ci skip), build 15 runs all stages" loading="lazy"><figcaption>Jenkins stage view. #14 is the <code>[ci skip]</code> commit (build stages skipped). #15 ran everything: ~1 min 36 s average full run.</figcaption></figure>
-    <figure class="fig"><img src="assets/argocd-healthy.png" alt="Argo CD application tree for ivolve showing Healthy, Synced, Sync OK by Jenkins CI" loading="lazy"><figcaption>Argo CD: <b>Healthy</b>, <b>Synced</b> to <code>main</code>, last sync authored by “Jenkins CI”. 12 resources, 0 out of sync.</figcaption></figure>
-  </div>
-  <div class="shots reveal">
-    <figure class="fig"><img src="assets/dockerhub-tags.png" alt="Docker Hub tags for application-ivolve, one per build number" loading="lazy"><figcaption>Docker Hub: one image tag per Jenkins build number, so every release is traceable.</figcaption></figure>
-    <figure class="fig"><img src="assets/trivy-scan.png" alt="Trivy scan output in the Jenkins console" loading="lazy"><figcaption>Trivy scans every image for HIGH and CRITICAL vulnerabilities (reported, non-blocking). There are no unit tests in this project, so the scan is the quality gate.</figcaption></figure>
+  <div class="shots">
+    <figure class="fig"><img src="assets/jenkins-14-15.png" alt="Jenkins stage view: build 14 ran only Checkout, build 15 ran every stage" loading="lazy"><figcaption>Jenkins. Build 14 is the <code>[ci skip]</code> commit, build 15 ran every stage. The full run averages about 1 min 36 s.</figcaption></figure>
+    <figure class="fig"><img src="assets/argocd-healthy.png" alt="Argo CD application tree for ivolve: Healthy, Synced to main, last sync by Jenkins CI" loading="lazy"><figcaption>Argo CD. Healthy, synced to <code>main</code>, last sync authored by Jenkins CI. 12 resources, none out of sync.</figcaption></figure>
+    <figure class="fig"><img src="assets/dockerhub-tags.png" alt="Docker Hub tags for application-ivolve, one per build number" loading="lazy"><figcaption>Docker Hub keeps one tag per Jenkins build number, so every release is traceable.</figcaption></figure>
+    <figure class="fig"><img src="assets/trivy-scan.png" alt="Trivy scan in the Jenkins console" loading="lazy"><figcaption>Trivy reports HIGH and CRITICAL findings without failing the build. The project has no unit tests, so the scan is the only quality gate.</figcaption></figure>
   </div>
 </section>
 
-<!-- ACCESS -->
+<!-- access -->
 <section id="access">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">07</span>Reaching it</div>
-    <h2>Three relays from pod to browser.</h2>
-    <p class="lead">Nothing is exposed to the internet. To open Grafana, Prometheus, Argo CD or the app from my main PC, each port is forwarded three times.</p>
-  </div>
-  <div class="card reveal">
-    <div class="chain" id="chain">
-      <div class="hop"><b>Pod / Service</b><span class="muted">in the cluster</span></div><div class="link"></div>
-      <div class="hop"><b>① kubectl port-forward</b><span class="muted">on k8s-cp, binds to localhost only</span><code>kubectl port-forward …</code></div><div class="link"></div>
-      <div class="hop"><b>② socat on k8s-cp VM</b><span class="muted">re-opens the port on the VM's network</span><code>socat TCP-LISTEN:p,fork TCP:localhost:q</code></div><div class="link"></div>
-      <div class="hop"><b>③ socat on server</b><span class="muted">publishes it on the LAN 192.168.1.5</span><code>socat TCP-LISTEN:p,fork TCP:192.168.122.69:p</code></div><div class="link"></div>
-      <div class="hop act"><b>Browser</b><span class="muted">main PC, same LAN (or via SSH)</span></div>
-    </div>
-    <p class="note" style="margin-top:14px"><code>kubectl port-forward</code> only listens on 127.0.0.1, so it can't be reached from outside the VM. The socat hops bridge it across the two network layers (VM → libvirt NAT → LAN).</p>
+  <h2>Three relays from pod to browser</h2>
+  <p class="lede">To open Grafana, Prometheus, Argo CD or the app from my main PC, each port is forwarded three times. <code>kubectl port-forward</code> only listens on localhost, so socat carries it across each network layer.</p>
+  <div class="hops">
+    <div><b>Service</b><p>Inside the cluster.</p></div>
+    <div><b>kubectl port-forward</b><p>On k8s-cp, bound to localhost.</p><code>kubectl port-forward svc/... q:p</code></div>
+    <div><b>socat on k8s-cp</b><p>Re-opens the port on the VM network.</p><code>socat TCP-LISTEN:r,fork TCP:localhost:q</code></div>
+    <div><b>socat on the server</b><p>Publishes it on the LAN at 192.168.1.5.</p><code>socat TCP-LISTEN:r,fork TCP:192.168.122.69:r</code></div>
+    <div><b>Browser</b><p>On the main PC, same LAN.</p></div>
   </div>
 </section>
 
-<!-- LESSONS -->
-<section id="lessons">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">08</span>What went wrong (and the fixes)</div>
-    <h2>Real problems I debugged.</h2>
-    <p class="lead">The interesting part of a home lab is what breaks. These all happened on this cluster.</p>
-  </div>
-  <div class="grid g2">
-    <div class="card lesson reveal"><div class="n">1</div><div><b class="t">App stuck at <code>init:0/1</code> after the first Argo sync</b><p>Argo showed <b>Degraded</b>. The init container looped on “Waiting for MYSQL…”. Cause: <code>DB_HOST</code> in the ConfigMap was <code>ivolve</code>, but the Service is <code>ivolve-db-svc</code>, so DNS failed. The init loop hid the real error.</p><p><b>Fix:</b> correct the ConfigMap, <code>kubectl rollout restart</code>. The ConfigMap sits outside the path Argo watches, so it was applied manually.</p>
-      <details class="more"><summary>Show the screenshot</summary><figure class="fig"><img src="assets/argocd-degraded.png" alt="Argo CD showing the app Degraded with a pod stuck at init" loading="lazy"></figure></details></div></div>
-    <div class="card lesson reveal"><div class="n">2</div><div><b class="t">New pod <code>Pending</code>: “1 Insufficient cpu”</b><p>I requested 1 CPU / 1 GiB per pod. The worker only has 2 vCPUs and ~2.9 GiB, and the rolling update needed a surge pod. The scheduler refused it.</p><p><b>Fix:</b> requests 200m / 500 Mi, limits 1 CPU / 1 Gi, quota raised from 3 to 4 pods. A direct consequence of the shared-CPU design above.</p></div></div>
-    <div class="card lesson reveal"><div class="n">3</div><div><b class="t">metrics-server wouldn't start (TLS)</b><p>kubelet serving certs in a kubeadm lab are self-signed, so metrics-server couldn't verify them.</p><p><b>Fix:</b> add <code>--kubelet-insecure-tls</code>. Acceptable for a private lab, not for production, where I'd configure signed kubelet certs. <code>kubectl top</code> now works.</p></div></div>
-    <div class="card lesson reveal"><div class="n">4</div><div><b class="t">Pipeline would trigger itself forever</b><p>Jenkins pushes a manifest commit, which triggers Jenkins again.</p><p><b>Fix:</b> <code>[ci skip]</code> in the commit message plus a <code>changelog</code> condition on each stage.</p>
-      <details class="more"><summary>Show builds 12 and 13</summary><figure class="fig"><img src="assets/jenkins-12-13.png" alt="Jenkins build 12 failed at UpdateManifestInGit and build 13 passed" loading="lazy"><figcaption>Build 12 failed at <code>UpdateManifestInGit</code>; build 13, after the fix, passed all stages.</figcaption></figure></details></div></div>
+<!-- problems -->
+<section id="problems">
+  <h2>What broke, and how I fixed it</h2>
+  <p class="lede">All four happened on this cluster.</p>
+  <div class="probs">
+    <div class="prob"><h3>App stuck at init:0/1 after the first Argo sync</h3>
+      <dl><dt>Symptom</dt><dd>Argo CD showed Degraded. The init container looped on "Waiting for MYSQL".</dd><dt>Cause</dt><dd><code>DB_HOST</code> in the ConfigMap was <code>ivolve</code>, but the Service is <code>ivolve-db-svc</code>. DNS failed, and the init loop hid the error.</dd><dt>Fix</dt><dd><b>Correct the ConfigMap, then restart the Deployment.</b> The ConfigMap sits outside the path Argo watches, so I applied it by hand.</dd></dl>
+      <details><summary>Show the screenshot</summary><figure class="fig"><img src="assets/argocd-degraded.png" alt="Argo CD showing the app Degraded with a pod stuck at init" loading="lazy"></figure></details></div>
+    <div class="prob"><h3>New pod Pending: 1 Insufficient cpu</h3>
+      <dl><dt>Symptom</dt><dd>A rolling update left a pod unscheduled.</dd><dt>Cause</dt><dd>I requested 1 CPU and 1 GiB per pod, on a worker with 2 vCPUs and about 2.9 GiB.</dd><dt>Fix</dt><dd><b>Requests 200m and 500 Mi, limits 1 CPU and 1 Gi.</b> Quota raised from 3 to 4 pods.</dd></dl></div>
+    <div class="prob"><h3>metrics-server would not start</h3>
+      <dl><dt>Symptom</dt><dd>TLS errors in the metrics-server log, and no <code>kubectl top</code>.</dd><dt>Cause</dt><dd>kubeadm kubelet serving certificates are self-signed.</dd><dt>Fix</dt><dd><b>Added <code>--kubelet-insecure-tls</code>.</b> Fine for a private lab. In production I would use signed kubelet certificates.</dd></dl></div>
+    <div class="prob"><h3>The pipeline could trigger itself</h3>
+      <dl><dt>Symptom</dt><dd>Jenkins pushes a manifest commit, which would start another Jenkins build.</dd><dt>Cause</dt><dd>The push trigger fires on every commit, including Jenkins' own.</dd><dt>Fix</dt><dd><b><code>[ci skip]</code> in the message plus a changelog condition on each stage.</b></dd></dl>
+      <details><summary>Show builds 12 and 13</summary><figure class="fig"><img src="assets/jenkins-12-13.png" alt="Jenkins build 12 failed at UpdateManifestInGit, build 13 passed" loading="lazy"><figcaption>Build 12 failed at UpdateManifestInGit. Build 13 passed every stage.</figcaption></figure></details></div>
   </div>
 </section>
 
-<!-- INVENTORY -->
+<!-- inventory -->
 <section id="inventory">
-  <div class="sec-head reveal">
-    <div class="eyebrow"><span class="num">09</span>Live inventory</div>
-    <h2>Everything running on the cluster.</h2>
-    <p class="lead">Snapshot from <code>kubectl get deploy,sts,ds -A -o wide</code> on 9 Nov 2026.</p>
-  </div>
-  <div class="reveal">
-    <div class="tools"><input id="q" type="search" placeholder="Filter by name, namespace or image…" aria-label="Filter workloads"><div class="seg" role="group" aria-label="Kind filter" id="kinds"></div></div>
-    <div class="tablebox"><table><thead><tr><th>Kind</th><th>Namespace</th><th>Name</th><th>Ready</th><th>Image</th></tr></thead><tbody id="tbody"></tbody></table></div>
-    <p class="note" id="invnote"></p>
-  </div>
+  <h2>Everything running right now</h2>
+  <p class="lede">Workloads from <code>kubectl get deploy,sts,ds -A -o wide</code>, 9 November 2026.</p>
+  <div class="tools"><input id="q" type="search" placeholder="Filter by name, namespace or image" aria-label="Filter workloads"><div class="seg" id="kinds" role="group" aria-label="Filter by kind"></div></div>
+  <div class="tbox"><table id="inv"><thead><tr><th>Kind</th><th>Namespace</th><th>Name</th><th>Ready</th><th>Image</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  <p class="small" id="invnote" style="margin-top:12px"></p>
 </section>
 
 </div>
@@ -560,72 +486,55 @@ helm install monitoring-set prometheus-community/kube-prometheus-stack \
 
 <footer>
   <div class="wrap">
-    <div><b style="color:var(--text)">Moaz Elgendy</b> · DevOps lab project<br>Kubernetes · Jenkins · Argo CD · Prometheus · Grafana · Helm · KVM<br><span class="note">Everything runs locally on a private network. No secrets, tokens or kubeconfigs are published here.</span></div>
-    <div><a href="https://github.com/Moaz-Elgendy/ivolve-project">github.com/Moaz-Elgendy/ivolve-project</a><br><span class="note">The CPU illustration is conceptual; all names, versions and screenshots are from the real cluster.</span></div>
+    <div><b>Moaz Elgendy</b><br>DevOps lab project</div>
+    <div>Everything runs locally on a private network. No secrets, tokens or kubeconfigs are published here. Versions, names and screenshots come from the real cluster. The CPU panel is an illustration.<br><a href="https://github.com/Moaz-Elgendy/ivolve-project">github.com/Moaz-Elgendy/ivolve-project</a></div>
   </div>
 </footer>
 
 <script>
 'use strict';
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* theme */
+$('#theme').onclick=()=>{const r=document.documentElement;const cur=r.dataset.theme||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');const n=cur==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}};
+
+/* scrollspy */
 (function(){
-  const r=document.documentElement;
-  let saved=null;try{saved=localStorage.getItem('theme')}catch(e){}
-  const init=saved||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
-  r.dataset.theme=init;
-  $('#theme').onclick=()=>{const n=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('theme',n)}catch(e){}};
+  const links=$$('#links a'),map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.removeAttribute('aria-current'));const a=map.get(e.target.id);if(a){a.setAttribute('aria-current','true');a.scrollIntoView({inline:'center',block:'nearest'})}}}),{rootMargin:'-35% 0px -60% 0px'});
+  map.forEach((a,id)=>{const s=document.getElementById(id);if(s)io.observe(s)});
 })();
 
-/* scrollspy + reveal */
+/* CPU panel */
 (function(){
-  const links=$$('#nav a'),secs=links.map(a=>document.getElementById(a.getAttribute('href').slice(1)));
-  const spy=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id));const on=$('#nav a.on');if(on)on.scrollIntoView({inline:'center',block:'nearest'})}})},{rootMargin:'-30% 0px -60% 0px'});
-  secs.forEach(s=>s&&spy.observe(s));
-  const rv=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rv.unobserve(e.target)}}),{threshold:.08});
-  $$('.reveal').forEach(el=>rv.observe(el));
-})();
-
-/* CPU scheduler illustration */
-(function(){
-  const COLS=28,lanes=$('#lanes'),names=['core 1 · thread A','core 1 · thread B','core 2 · thread A','core 2 · thread B'];
-  const cells=[];
-  names.forEach((n,i)=>{const l=document.createElement('div');l.className='lane-l';l.textContent='CPU'+i;lanes.appendChild(l);
-    const row=document.createElement('div');row.className='lane';const arr=[];for(let c=0;c<COLS;c++){const x=document.createElement('i');row.appendChild(x);arr.push(x)}cells.push(arr);lanes.appendChild(row);
-    if(i===1){const a=document.createElement('div');a.className='core-gap';lanes.appendChild(a)}});
-  const hist=Array.from({length:4},()=>Array(COLS).fill(''));
-  let busy=false,paused=false,wait=0;
-  const threads=()=>{
+  const cores=$('#cores'),tiles=[];
+  [0,1].forEach(c=>{const core=document.createElement('div');core.className='core';
+    [0,1].forEach(t=>{const idx=c*2+t;const tile=document.createElement('div');tile.className='tile';tile.innerHTML='<small>CPU '+idx+' (core '+(c+1)+', thread '+'AB'[t]+')</small><b>idle</b>';tiles.push(tile);core.appendChild(tile)});cores.appendChild(core)});
+  const NAMES={host:['Host OS'],build:['Jenkins','Docker build','Trivy scan'],cp:['k8s-cp vCPU 0','k8s-cp vCPU 1'],wk:['k8s-worker vCPU 0','k8s-worker vCPU 1']};
+  let busy=false,paused=false;
+  function runnable(){
     const t=[];
-    if(Math.random()<(busy?.7:.35))t.push('host');
-    ['cp','cp','wk','wk'].forEach(o=>{if(Math.random()<(busy?.75:.45))t.push(o)});
-    if(busy){t.push('jen','jen','jen');if(Math.random()<.5)t.push('jen')}
+    if(Math.random()<(busy?.7:.3))t.push(['host',NAMES.host[0]]);
+    [0,1].forEach(i=>{if(Math.random()<(busy?.8:.45))t.push(['cp',NAMES.cp[i]]);if(Math.random()<(busy?.8:.45))t.push(['wk',NAMES.wk[i]])});
+    if(busy)NAMES.build.forEach(n=>t.push(['build',n]));
     return t.sort(()=>Math.random()-.5);
-  };
+  }
   function tick(){
-    const t=threads();wait=Math.max(0,t.length-4);
-    for(let l=0;l<4;l++){hist[l].shift();hist[l].push(t[l]||'')}
-    render();
+    const r=runnable();
+    tiles.forEach((tile,i)=>{const w=r[i];tile.dataset.o=w?w[0]:'';tile.querySelector('b').textContent=w?w[1]:'idle'});
+    const q=r.slice(4);const el=$('#queue');
+    el.innerHTML=q.length?'<span>Waiting for a free CPU:</span>'+q.map(w=>'<span class="qtok">'+w[1]+'</span>').join(''):'<span>Nothing waiting. Every runnable thread has a CPU.</span>';
   }
-  function render(){
-    const tot={host:0,jen:0,cp:0,wk:0};let used=0;
-    for(let l=0;l<4;l++)for(let c=0;c<COLS;c++){const o=hist[l][c];cells[l][c].dataset.o=o;if(o){tot[o]++;used++}}
-    const pct=k=>Math.round(tot[k]/(4*COLS)*100)+'%';
-    $('#r-host').textContent=pct('host');$('#r-jen').textContent=pct('jen');$('#r-cp').textContent=pct('cp');$('#r-wk').textContent=pct('wk');
-    $('#r-wait').textContent='Threads waiting for a free CPU (this slice): '+wait;
-  }
-  for(let i=0;i<COLS;i++)tick();
-  let timer=RM?null:setInterval(()=>{if(!paused)tick()},450);
-  const setBusy=b=>{busy=b;$('#m-busy').setAttribute('aria-pressed',b);$('#m-idle').setAttribute('aria-pressed',!b)};
+  tick();
+  const setBusy=b=>{busy=b;$('#m-busy').setAttribute('aria-pressed',b);$('#m-idle').setAttribute('aria-pressed',!b);if(paused||RM)tick()};
   $('#m-idle').onclick=()=>setBusy(false);$('#m-busy').onclick=()=>setBusy(true);
-  $('#pause').textContent=RM?'Step':'Pause';
-  $('#pause').onclick=()=>{if(RM){tick();return}paused=!paused;$('#pause').textContent=paused?'Resume':'Pause'};
+  const pb=$('#pause');
+  if(RM){pb.textContent='Step';pb.onclick=tick}
+  else{setInterval(()=>{if(!paused)tick()},1100);pb.onclick=()=>{paused=!paused;pb.textContent=paused?'Resume':'Pause';pb.setAttribute('aria-label',paused?'Resume the animation':'Pause the animation')}}
 })();
 
 /* data */
-const NS={argocd:'#b9a2ff',ivolve:'#5eead4','kube-flannel':'#fbbf6a','kube-system':'#7cb4ff',monitoring:'#fb8aa0'};
 const P=[
 ['argocd','argocd-application-controller-0','wk'],['argocd','argocd-applicationset-controller','wk'],['argocd','argocd-dex-server','wk'],['argocd','argocd-notifications-controller','wk'],['argocd','argocd-redis','wk'],['argocd','argocd-repo-server','wk'],['argocd','argocd-server','wk'],
 ['ivolve','ivolve-app (replica 1)','wk'],['ivolve','ivolve-app (replica 2)','wk'],['ivolve','ivolve-db-0','wk'],
@@ -633,87 +542,79 @@ const P=[
 ['kube-system','coredns (1)','cp'],['kube-system','coredns (2)','cp'],['kube-system','etcd-k8s-cp','cp'],['kube-system','kube-apiserver-k8s-cp','cp'],['kube-system','kube-controller-manager-k8s-cp','cp'],['kube-system','kube-proxy','wk'],['kube-system','kube-proxy','cp'],['kube-system','kube-scheduler-k8s-cp','cp'],['kube-system','metrics-server','cp'],
 ['monitoring','alertmanager-0','cp'],['monitoring','grafana','wk'],['monitoring','prometheus-operator','wk'],['monitoring','kube-state-metrics','cp'],['monitoring','node-exporter','cp'],['monitoring','node-exporter','wk'],['monitoring','prometheus-0','wk']];
 const DESC=[
-[/application-controller/,'Argo CD’s brain: compares Git with the cluster and syncs differences. A StatefulSet.'],[/applicationset/,'Argo CD component that generates Applications from templates.'],[/dex/,'Argo CD’s identity/SSO connector.'],[/notifications/,'Argo CD component that sends sync notifications.'],[/redis/,'Cache used by Argo CD.'],[/repo-server/,'Argo CD component that clones the Git repo and renders manifests.'],[/argocd-server/,'The Argo CD API and web UI (reached on :8040 through the relays).'],
-[/ivolve-app/,'The web application (port 3000), a Deployment with 2 replicas. Image tag is bumped by Jenkins via Git.'],[/ivolve-db/,'MySQL, the StatefulSet pod with a persistent 5 Gi volume. Reachable only from the app (NetworkPolicy).'],
-[/flannel/,'Flannel CNI DaemonSet: VXLAN overlay so pods on different nodes can talk (10.244.0.0/16).'],[/coredns/,'Cluster DNS. Resolves names like ivolve-db-svc.'],[/etcd/,'The cluster’s database. Static pod on the control plane.'],[/apiserver/,'The Kubernetes API, the front door to the cluster. Static pod.'],[/controller-manager/,'Runs control loops (replicas, nodes, endpoints…). Static pod.'],[/kube-proxy/,'DaemonSet that programs Service routing on each node.'],[/scheduler/,'Decides which node each new pod goes to. Static pod.'],[/metrics-server/,'Feeds kubectl top with live CPU/memory per pod and node.'],
-[/alertmanager/,'Routes and de-duplicates alerts from Prometheus.'],[/grafana/,'Dashboards for the cluster metrics.'],[/prometheus-operator/,'Manages Prometheus and Alertmanager from Kubernetes objects.'],[/kube-state-metrics/,'Exports the state of Kubernetes objects as metrics.'],[/node-exporter/,'DaemonSet: exposes each node’s hardware/OS metrics on :9100.'],[/prometheus-0/,'The metrics database that scrapes both nodes. A StatefulSet.']];
+[/application-controller/,'The Argo CD controller. It compares Git with the cluster and syncs the differences. A StatefulSet.'],[/applicationset/,'Argo CD component that generates Applications from templates.'],[/dex/,'Argo CD identity and single sign-on connector.'],[/notifications/,'Argo CD component that sends sync notifications.'],[/redis/,'Cache used by Argo CD.'],[/repo-server/,'Clones the Git repository and renders the manifests for Argo CD.'],[/argocd-server/,'The Argo CD API and web UI.'],
+[/ivolve-app/,'The web application on port 3000. A Deployment with 2 replicas. Jenkins changes its image tag through Git.'],[/ivolve-db/,'MySQL, as a StatefulSet pod with a persistent volume. Only the app may reach it.'],
+[/flannel/,'Flannel network plugin. A VXLAN overlay so pods on different nodes can talk.'],[/coredns/,'Cluster DNS. Resolves names such as ivolve-db-svc.'],[/etcd/,'The cluster database. A static pod on the control plane.'],[/apiserver/,'The Kubernetes API, the front door to the cluster. A static pod.'],[/controller-manager/,'Runs the control loops for replicas, nodes and endpoints. A static pod.'],[/kube-proxy/,'Programs Service routing on each node. A DaemonSet.'],[/scheduler/,'Chooses a node for every new pod. A static pod.'],[/metrics-server/,'Feeds kubectl top with live CPU and memory numbers.'],
+[/alertmanager/,'Groups and routes alerts from Prometheus.'],[/grafana/,'Dashboards for the cluster metrics.'],[/prometheus-operator/,'Manages Prometheus and Alertmanager from Kubernetes objects.'],[/kube-state-metrics/,'Exports the state of Kubernetes objects as metrics.'],[/node-exporter/,'One pod per node. Exposes hardware and OS metrics on port 9100. A DaemonSet.'],[/prometheus-0/,'The metrics database that scrapes both nodes. A StatefulSet.']];
 const desc=n=>(DESC.find(d=>d[0].test(n))||[0,'Kubernetes component.'])[1];
 $('#s-pods').textContent=P.length;
 
 /* architecture pods */
 (function(){
-  const box={cp:$('#pods-cp'),wk:$('#pods-wk')};let sel=null,filt=null;
-  const els=P.map((p,i)=>{const b=document.createElement('button');b.className='pod';b.style.setProperty('--ns',NS[p[0]]);b.textContent=p[1];b.title=p[0]+'/'+p[1];
-    b.onclick=()=>{els.forEach(e=>e.classList.remove('sel'));b.classList.add('sel');
-      $('#podinfo').innerHTML='<h4></h4><p class="muted" style="margin:4px 0 0"></p><div style="margin-top:6px"></div>';
-      $('#podinfo h4').textContent=p[1];$('#podinfo p').textContent=desc(p[1]);
-      $('#podinfo div').innerHTML='<span class="tag">ns: '+p[0]+'</span><span class="tag">node: '+(p[2]==='cp'?'k8s-cp':'k8s-worker')+'</span>'};
+  const box={cp:$('#pods-cp'),wk:$('#pods-wk')};
+  const els=P.map(p=>{const b=document.createElement('button');b.className='pod';b.setAttribute('aria-pressed','false');b.textContent=p[1];b.title=p[0]+'/'+p[1];
+    b.onclick=()=>{els.forEach(e=>e.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');
+      const pi=$('#podinfo');pi.innerHTML='<h4></h4><p class="mute" style="margin:0 0 4px"></p><p class="small" style="margin:0"></p>';
+      pi.querySelector('h4').textContent=p[1];pi.querySelectorAll('p')[0].textContent=desc(p[1]);pi.querySelectorAll('p')[1].textContent='Namespace '+p[0]+', node '+(p[2]==='cp'?'k8s-cp':'k8s-worker')};
     box[p[2]].appendChild(b);return b});
-  const bar=$('#nsbar');
-  const mk=(label,val)=>{const b=document.createElement('button');b.className='nsbtn';b.textContent=label;b.setAttribute('aria-pressed',val===null);if(val)b.style.setProperty('--ns',NS[val]);
-    b.onclick=()=>{filt=val;$$('.nsbtn').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');els.forEach((e,i)=>e.classList.toggle('dim',!!val&&P[i][0]!==val))};bar.appendChild(b)};
-  mk('all ('+P.length+')',null);Object.keys(NS).forEach(n=>mk(n+' ('+P.filter(p=>p[0]===n).length+')',n));
+  const names=[...new Set(P.map(p=>p[0]))],bar=$('#nsbar');
+  const mk=(label,val)=>{const b=document.createElement('button');b.textContent=label;b.setAttribute('aria-pressed',val===null);
+    b.onclick=()=>{$$('#nsbar button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');els.forEach((e,i)=>e.classList.toggle('dim',!!val&&P[i][0]!==val))};bar.appendChild(b)};
+  mk('All '+P.length,null);names.forEach(n=>mk(n+' '+P.filter(p=>p[0]===n).length,n));
 })();
 
-/* kubeadm steps */
+/* kubeadm */
 (function(){
   const S=[
-  {t:'Prepare',w:'both',d:'Kernel modules, forwarding and swap off. Kubernetes needs <code>br_netfilter</code> for pod traffic and no swap for the kubelet.',c:`<span class="c"># both VMs</span>
-sudo modprobe overlay br_netfilter vxlan
+  {t:'Prepare both VMs',w:'Both VMs',d:'Load the kernel modules, enable forwarding and turn swap off. Pod traffic needs <code>br_netfilter</code>, and the kubelet refuses to run with swap on.',c:`sudo modprobe overlay br_netfilter vxlan
 echo 'net.ipv4.ip_forward = 1
 net.bridge.bridge-nf-call-iptables = 1' | sudo tee /etc/sysctl.d/k8s.conf
 sudo sysctl --system
 sudo swapoff -a   <span class="c"># and comment swap out of /etc/fstab</span>`},
-  {t:'containerd',w:'both',d:'The container runtime the kubelet talks to over CRI. The systemd cgroup driver must match the kubelet.',c:`sudo apt-get install -y containerd runc containernetworking-plugins
+  {t:'Install containerd',w:'Both VMs',d:'The runtime the kubelet talks to over CRI. Its cgroup driver must match the kubelet, so set <code>SystemdCgroup = true</code>.',c:`sudo apt-get install -y containerd runc containernetworking-plugins
 containerd config default | sudo tee /etc/containerd/config.toml
-<span class="c"># set SystemdCgroup = true for runc, then:</span>
+<span class="c"># set SystemdCgroup = true for runc, then</span>
 sudo systemctl restart containerd && sudo systemctl enable containerd`},
-  {t:'Kube packages',w:'both',d:'<code>kubeadm</code>, <code>kubelet</code> and <code>kubectl</code> from the official v1.35 apt repository, pinned so apt never upgrades them by surprise.',c:`sudo apt-get install -y kubelet kubeadm kubectl
+  {t:'Install Kubernetes',w:'Both VMs',d:'kubeadm, kubelet and kubectl from the official v1.35 apt repository. Held, so apt never upgrades them by surprise.',c:`sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable --now kubelet`},
-  {t:'kubeadm init',w:'cp',d:'Bootstraps the control plane (API server, etcd, scheduler, controller-manager as static pods) and sets the pod CIDR that Flannel expects.',c:`sudo kubeadm init \\
+  {t:'Initialise the control plane',w:'k8s-cp only',d:'Creates the API server, etcd, scheduler and controller manager as static pods, and sets the pod range that Flannel expects.',c:`sudo kubeadm init \\
   --apiserver-advertise-address=192.168.122.69 \\
   --pod-network-cidr=10.244.0.0/16 \\
   --cri-socket=unix:///run/containerd/containerd.sock
 mkdir -p ~/.kube && sudo cp /etc/kubernetes/admin.conf ~/.kube/config`},
-  {t:'Flannel',w:'cp',d:'Installs the pod network (CNI). Until this runs, nodes stay <code>NotReady</code> and CoreDNS can’t start.',c:`kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+  {t:'Add the pod network',w:'k8s-cp only',d:'Until a network plugin runs, nodes stay NotReady and CoreDNS cannot start.',c:`kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 kubectl -n kube-flannel rollout status ds/kube-flannel-ds`},
-  {t:'Join + label',w:'wk',d:'The worker joins with a token, then I dedicate it to the app with a taint and a label.',c:`sudo kubeadm join 192.168.122.69:6443 --token &lt;redacted&gt; \\
+  {t:'Join the worker',w:'k8s-worker, then k8s-cp',d:'The worker joins with a token. Then a taint and a label reserve it for the application.',c:`sudo kubeadm join 192.168.122.69:6443 --token &lt;redacted&gt; \\
   --discovery-token-ca-cert-hash sha256:&lt;redacted&gt;
 <span class="c"># back on k8s-cp</span>
 kubectl taint nodes k8s-worker workload=ivolveApp:NoSchedule
 kubectl label nodes k8s-worker project=ivolve`}];
   const tabs=$('#ksteps'),body=$('#kbody');
-  const W={both:'both VMs',cp:'k8s-cp only',wk:'k8s-worker'};
   function show(i){$$('#ksteps button').forEach((b,n)=>b.setAttribute('aria-selected',n===i));const s=S[i];
-    body.innerHTML='<span class="where '+s.w+'">'+W[s.w]+'</span><h3 style="display:inline">'+(i+1)+'. '+s.t+'</h3><p class="muted">'+s.d+'</p><pre><code>'+s.c+'</code></pre>'}
-  S.forEach((s,i)=>{const b=document.createElement('button');b.setAttribute('role','tab');b.innerHTML='<b>0'+(i+1)+'</b>'+s.t;b.onclick=()=>show(i);tabs.appendChild(b)});
+    body.innerHTML='<span class="where">'+s.w+'</span><h3>'+s.t+'</h3><p class="mute" style="margin-top:8px">'+s.d+'</p><pre><code>'+s.c+'</code></pre>'}
+  S.forEach((s,i)=>{const b=document.createElement('button');b.setAttribute('role','tab');b.innerHTML='<b>'+(i+1)+'</b><span>'+s.t+'</span>';b.onclick=()=>show(i);tabs.appendChild(b)});
   show(0);
 })();
-
-/* app map highlight */
-$$('.appmap .node').forEach(n=>n.onclick=()=>{$$('.appmap .node').forEach(x=>x.classList.remove('sel'));n.classList.add('sel')});
 
 /* pipeline */
 (function(){
   const S=[
-  {e:'⌨️',n:'git push',w:'ext',s:'main branch',d:'I push code to GitHub from my main PC.'},
-  {e:'🔔',n:'Trigger',w:'srv',s:'Jenkins',d:'The push triggers the Jenkins pipeline (<code>githubPush()</code>) on the server. Jenkins checks out the repo.'},
-  {e:'🐳',n:'Build',w:'srv',s:'docker build',d:'Docker on the server builds the app image from <code>docker/lab8</code>.'},
-  {e:'🛡️',n:'Scan',w:'srv',s:'Trivy',d:'Trivy scans the image for HIGH and CRITICAL vulnerabilities and writes a report. Non-blocking.'},
-  {e:'📦',n:'Push',w:'ext',s:'Docker Hub',d:'The image is pushed as <code>mk0230/application-ivolve:&lt;BUILD_NUMBER&gt;</code>, then removed from the local cache.'},
-  {e:'📝',n:'Commit tag',w:'ext',s:'GitHub',d:'Jenkins edits the <code>image:</code> line in <code>kubernetes/lab15/app-deployment-ivolve.yaml</code> and pushes with <code>[ci skip]</code>. No cluster access needed.'},
-  {e:'🔄',n:'Argo sync',w:'clu',s:'cluster',d:'Argo CD sees the new commit, syncs automatically, and Kubernetes rolls the 2 replicas to the new image on the worker.'}];
-  const pipe=$('#pipe'),els=S.map((s,i)=>{const d=document.createElement('div');d.className='stage '+s.w;d.innerHTML='<span class="em">'+s.e+'</span><b>'+(i+1)+'. '+s.n+'</b><small>'+s.s+'</small>';pipe.appendChild(d);return d});
-  let i=0,timer=null;
-  function go(n){i=(n+S.length)%S.length;els.forEach((e,k)=>{e.classList.toggle('on',k===i);e.classList.toggle('done',k<i)});
-    $('#pcap').innerHTML='<h3>Step '+(i+1)+' · '+S[i].n+'</h3><p class="muted" style="margin:0">'+S[i].d+'</p>';$('#pbar').style.width=((i+1)/S.length*100)+'%'}
-  function stop(){clearInterval(timer);timer=null;$('#pplay').textContent='▶ Play'}
-  $('#pplay').onclick=()=>{if(timer){stop();return}$('#pplay').textContent='❚❚ Pause';timer=setInterval(()=>go(i+1),2600)};
-  $('#pnext').onclick=()=>{stop();go(i+1)};$('#pprev').onclick=()=>{stop();go(i-1)};
-  els.forEach((e,k)=>e.onclick=()=>{stop();go(k)});go(0);
-  const io=new IntersectionObserver(es=>{if(es[0].isIntersecting&&!RM&&!timer&&!io.done){io.done=1;$('#pplay').click()}},{threshold:.5});io.observe(pipe);
-  const legend=document.createElement('p');legend.className='note';legend.innerHTML='Underline colour: <span style="color:var(--c-host)">■</span> on the server · <span style="color:var(--violet)">■</span> external (GitHub / Docker Hub) · <span style="color:var(--c-wk)">■</span> in the cluster';pipe.parentNode.insertBefore(legend,pipe.nextSibling);
+  {n:'Push',s:'My PC to GitHub',d:'I push code to the <code>main</code> branch on GitHub.'},
+  {n:'Trigger',s:'Jenkins, on the server',d:'The push triggers the Jenkins pipeline with <code>githubPush()</code>. Jenkins checks out the repository.'},
+  {n:'Build',s:'Docker, on the server',d:'Docker builds the application image from <code>docker/lab8</code>.'},
+  {n:'Scan',s:'Trivy, on the server',d:'Trivy scans the image for HIGH and CRITICAL vulnerabilities and writes a report. It never blocks the build.'},
+  {n:'Publish',s:'Docker Hub',d:'The image is pushed as <code>mk0230/application-ivolve:BUILD_NUMBER</code> and removed from the local cache.'},
+  {n:'Commit',s:'Jenkins to GitHub',d:'Jenkins edits the <code>image:</code> line in <code>kubernetes/lab15/app-deployment-ivolve.yaml</code> and pushes the commit with <code>[ci skip]</code>. It needs no cluster access.'},
+  {n:'Sync',s:'Argo CD, in the cluster',d:'Argo CD sees the commit and syncs it automatically. Kubernetes rolls the 2 replicas to the new image on the worker.'}];
+  const tr=$('#track');let i=0,timer=null,played=false;
+  const els=S.map((s,k)=>{const b=document.createElement('button');b.innerHTML='<b>'+(k+1)+'. '+s.n+'</b><small>'+s.s+'</small>';b.onclick=()=>{stop();go(k)};tr.appendChild(b);return b});
+  function go(n){i=(n+S.length)%S.length;els.forEach((e,k)=>{k===i?e.setAttribute('aria-current','step'):e.removeAttribute('aria-current');e.classList.toggle('done',k<i)});$('#pcap').innerHTML='<h3>'+(i+1)+'. '+S[i].n+'</h3><p class="mute">'+S[i].d+'</p>'}
+  function stop(){clearInterval(timer);timer=null;$('#pplay').textContent='Play'}
+  function play(){if(timer){stop();return}$('#pplay').textContent='Pause';if(i===S.length-1)go(0);timer=setInterval(()=>{if(i>=S.length-1){stop();return}go(i+1)},2800)}
+  $('#pplay').onclick=play;$('#pnext').onclick=()=>{stop();go(i+1)};$('#pprev').onclick=()=>{stop();go(i-1)};
+  go(0);
+  if(!RM)new IntersectionObserver((es,o)=>{if(es[0].isIntersecting&&!played){played=true;o.disconnect();play()}},{threshold:.6}).observe(tr);
 })();
 
 /* inventory */
@@ -723,14 +624,14 @@ $$('.appmap .node').forEach(n=>n.onclick=()=>{$$('.appmap .node').forEach(x=>x.c
   ['D','ivolve','ivolve-app','2/2','mk0230/application-ivolve:15'],
   ['D','kube-system','coredns','2/2','coredns:v1.13.1'],['D','kube-system','metrics-server','1/1','metrics-server:v0.9.1'],
   ['D','monitoring','monitoring-set-grafana','1/1','grafana/grafana:13.3.0-distroless'],['D','monitoring','monitoring-set-kube-promet-operator','1/1','prometheus-operator:v0.94.2'],['D','monitoring','monitoring-set-kube-state-metrics','1/1','kube-state-metrics:v2.20.0'],
-  ['S','argocd','argocd-application-controller','1/1','quay.io/argoproj/argocd:v3.6.1'],['S','ivolve','ivolve-db','1/1','mysql'],['S','monitoring','alertmanager-…-alertmanager','1/1','alertmanager:v0.34.2'],['S','monitoring','prometheus-…-prometheus','1/1','prometheus:v3.15.1-distroless'],
+  ['S','argocd','argocd-application-controller','1/1','quay.io/argoproj/argocd:v3.6.1'],['S','ivolve','ivolve-db','1/1','mysql'],['S','monitoring','alertmanager-monitoring-set-kube-promet-alertmanager','1/1','alertmanager:v0.34.2'],['S','monitoring','prometheus-monitoring-set-kube-promet-prometheus','1/1','prometheus:v3.15.1-distroless'],
   ['DS','kube-flannel','kube-flannel-ds','2/2','flannel-io/flannel:v0.28.10'],['DS','kube-system','kube-proxy','2/2','kube-proxy:v1.35.9'],['DS','monitoring','monitoring-set-prometheus-node-exporter','2/2','node-exporter:v1.12.1-distroless']];
-  const KN={D:'Deployment',S:'StatefulSet',DS:'DaemonSet'},KC={D:'k-d',S:'k-s',DS:'k-ds'};
+  const KN={D:'Deployment',S:'StatefulSet',DS:'DaemonSet'};
   let kind='ALL';const tb=$('#tbody'),kb=$('#kinds');
   ['ALL','D','S','DS'].forEach(k=>{const b=document.createElement('button');b.textContent=k==='ALL'?'All '+W.length:KN[k]+'s '+W.filter(w=>w[0]===k).length;b.setAttribute('aria-pressed',k==='ALL');b.onclick=()=>{kind=k;$$('#kinds button').forEach(x=>x.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');draw()};kb.appendChild(b)});
   function draw(){const q=$('#q').value.toLowerCase();const rows=W.filter(w=>(kind==='ALL'||w[0]===kind)&&w.join(' ').toLowerCase().includes(q));
-    tb.innerHTML=rows.map(w=>'<tr><td class="'+KC[w[0]]+'">'+KN[w[0]]+'</td><td>'+w[1]+'</td><td class="mono">'+w[2]+'</td><td>'+w[3]+'</td><td class="mono">'+w[4]+'</td></tr>').join('')||'<tr><td colspan="5" class="muted">No match</td></tr>';
-    $('#invnote').textContent=rows.length+' of '+W.length+' workloads · 28 pods · 28 services · 3 PVs bound · images shortened (registry prefix omitted where obvious)'}
+    tb.innerHTML=rows.map(w=>'<tr><td>'+KN[w[0]]+'</td><td>'+w[1]+'</td><td class="m">'+w[2]+'</td><td>'+w[3]+'</td><td class="m">'+w[4]+'</td></tr>').join('')||'<tr><td colspan="5" class="mute">No workload matches that filter. Clear the search or pick All.</td></tr>';
+    $('#invnote').textContent=rows.length+' of '+W.length+' workloads. The cluster also has 28 pods, 28 services and 3 bound volumes.'}
   $('#q').oninput=draw;draw();
 })();
 </script>
