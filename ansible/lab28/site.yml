@@ -1,0 +1,39 @@
+---
+- name: Configure ivolve EC2 servers
+  hosts: server_ivolve
+  become: true
+
+  tasks:
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
+    - name: Deploy index page
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        content: "<h1>{{ inventory_hostname }} managed by Ansible (server=ivolve)</h1>\n"
+        mode: "0644"
+
+    - name: Enable and start nginx
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Verify nginx serves the page locally
+      ansible.builtin.uri:
+        url: http://localhost/
+        return_content: true
+      register: page
+      tags: [verify]
+
+    - name: Assert page content
+      ansible.builtin.assert:
+        that:
+          - page.status == 200
+          - "'managed by Ansible' in page.content"
+        fail_msg: "nginx check failed on {{ inventory_hostname }}"
+        success_msg: "{{ inventory_hostname }} OK"
+      tags: [verify]

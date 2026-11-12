@@ -1,0 +1,40 @@
+---
+- name: Install MySQL server and Python driver
+  ansible.builtin.apt:
+    name:
+      - "{{ mysql_package }}"
+      - "{{ mysql_python_package }}"
+      - python3-cryptography
+    state: present
+    update_cache: true
+
+- name: Create ivolve database
+  community.mysql.mysql_db:
+    name: "{{ mysql_database }}"
+    state: present
+    login_unix_socket: "{{ mysql_socket }}"
+
+- name: Create ivolveuser with all privileges on ivolve database
+  community.mysql.mysql_query:
+    login_unix_socket: "{{ mysql_socket }}"
+    query:
+      - "CREATE USER IF NOT EXISTS '{{ mysql_user }}'@'{{ mysql_host }}' IDENTIFIED WITH {{ mysql_auth_plugin }} BY '{{ mysql_password }}'"
+      - "ALTER USER '{{ mysql_user }}'@'{{ mysql_host }}' IDENTIFIED WITH {{ mysql_auth_plugin }} BY '{{ mysql_password }}'"
+      - "GRANT ALL PRIVILEGES ON `{{ mysql_database }}`.* TO '{{ mysql_user }}'@'{{ mysql_host }}'"
+  no_log: true
+
+- name: Validate ivolveuser can connect and list databases
+  community.mysql.mysql_query:
+    login_user: "{{ mysql_user }}"
+    login_password: "{{ mysql_password }}"
+    login_host: 127.0.0.1
+    query: SHOW DATABASES
+  register: mysql_dbs
+  changed_when: false
+  no_log: true
+  tags: [verify]
+
+- name: Show databases visible to ivolveuser
+  ansible.builtin.debug:
+    msg: "{{ mysql_dbs.query_result | flatten }}"
+  tags: [verify]

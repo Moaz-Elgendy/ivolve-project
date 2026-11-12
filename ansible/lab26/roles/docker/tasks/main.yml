@@ -1,0 +1,17 @@
+---
+- name: Install Docker
+  ansible.builtin.apt:
+    name: "{{ docker_package }}"
+    state: present
+    update_cache: true
+
+- name: Get Docker version
+  ansible.builtin.command: docker --version
+  register: docker_ver
+  changed_when: false
+  tags: [verify]
+
+- name: Show Docker version
+  ansible.builtin.debug:
+    msg: "{{ docker_ver.stdout }}"
+  tags: [verify]

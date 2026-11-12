@@ -1,0 +1,4 @@
+---
+mysql_database: ivolve
+mysql_user: ivolveuser
+mysql_password: "{{ vault_mysql_password }}"

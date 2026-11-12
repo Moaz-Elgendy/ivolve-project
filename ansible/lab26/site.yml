@@ -1,0 +1,12 @@
+---
+- name: Configure web nodes with Docker, kubectl and Jenkins roles
+  hosts: web
+  become: true
+
+  roles:
+    - role: docker
+      tags: [docker]
+    - role: kubectl
+      tags: [kubectl]
+    - role: jenkins
+      tags: [jenkins]

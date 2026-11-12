@@ -1,0 +1,85 @@
+---
+- name: Configure web nodes with Docker, kubectl and Jenkins
+  hosts: web
+  become: true
+  vars:
+    kubectl_version: v1.31.4
+    jenkins_key_url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+    jenkins_keyring: /usr/share/keyrings/jenkins-keyring.asc
+
+  tasks:
+    - name: Update and upgrade apt packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    - name: Install Docker
+      tags: [docker]
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+        update_cache: true
+
+    - name: Install kubectl
+      tags: [kubectl]
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+        checksum: "sha256:https://dl.k8s.io/release/{{ kubectl_version }}/bin/linux/amd64/kubectl.sha256"
+
+    - name: Install Jenkins
+      tags: [jenkins]
+      block:
+        - name: Install Java, fontconfig and gpg (Jenkins prerequisites)
+          ansible.builtin.apt:
+            name:
+              - gnupg
+              - fontconfig
+              - openjdk-21-jre-headless
+            state: present
+            update_cache: true
+
+        - name: Add Jenkins signing key
+          ansible.builtin.get_url:
+            url: "{{ jenkins_key_url }}"
+            dest: "{{ jenkins_keyring }}"
+            mode: "0644"
+            force: true
+
+        - name: Add Jenkins apt repository
+          ansible.builtin.apt_repository:
+            repo: "deb [signed-by={{ jenkins_keyring }}] https://pkg.jenkins.io/debian-stable binary/"
+            filename: jenkins
+            state: present
+
+        - name: Install Jenkins
+          ansible.builtin.apt:
+            name: jenkins
+            state: present
+            update_cache: true
+
+    - name: Verify installed versions
+      tags: [verify]
+      block:
+        - name: Get Docker version
+          ansible.builtin.command: docker --version
+          register: docker_ver
+          changed_when: false
+
+        - name: Get kubectl client version
+          ansible.builtin.command: kubectl version --client
+          register: kubectl_ver
+          changed_when: false
+
+        - name: Get Jenkins package version
+          ansible.builtin.command: dpkg-query -W -f='${Version}' jenkins
+          register: jenkins_ver
+          changed_when: false
+
+        - name: Show versions
+          ansible.builtin.debug:
+            msg:
+              - "{{ docker_ver.stdout }}"
+              - "{{ kubectl_ver.stdout_lines | first }}"
+              - "Jenkins {{ jenkins_ver.stdout }}"

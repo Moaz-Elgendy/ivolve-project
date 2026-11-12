@@ -1,0 +1,39 @@
+---
+- name: Install Java and Jenkins prerequisites
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - fontconfig
+      - "{{ jenkins_java_package }}"
+    state: present
+    update_cache: true
+
+- name: Add Jenkins signing key
+  ansible.builtin.get_url:
+    url: "{{ jenkins_key_url }}"
+    dest: "{{ jenkins_keyring }}"
+    mode: "0644"
+    force: true
+
+- name: Add Jenkins apt repository
+  ansible.builtin.apt_repository:
+    repo: "{{ jenkins_repo }}"
+    filename: jenkins
+    state: present
+
+- name: Install Jenkins
+  ansible.builtin.apt:
+    name: jenkins
+    state: present
+    update_cache: true
+
+- name: Get Jenkins package version
+  ansible.builtin.command: dpkg-query -W -f='${Version}' jenkins
+  register: jenkins_ver
+  changed_when: false
+  tags: [verify]
+
+- name: Show Jenkins version
+  ansible.builtin.debug:
+    msg: "Jenkins {{ jenkins_ver.stdout }}"
+  tags: [verify]

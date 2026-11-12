@@ -1,0 +1,10 @@
+---
+mysql_package: mysql-server
+mysql_python_package: python3-pymysql
+mysql_socket: /var/run/mysqld/mysqld.sock
+mysql_database: ivolve
+mysql_user: ivolveuser
+mysql_host: "%"
+mysql_privileges: "ivolve.*:ALL"
+# MySQL 8.4+ disables mysql_native_password, so use the server default
+mysql_auth_plugin: caching_sha2_password

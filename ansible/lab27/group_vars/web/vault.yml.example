@@ -1,0 +1,4 @@
+---
+# Copy to vault.yml, put a real password in it, then encrypt:
+#   ansible-vault encrypt group_vars/web/vault.yml
+vault_mysql_password: "CHANGE_ME_STRONG_PASSWORD"
